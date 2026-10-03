@@ -22,9 +22,9 @@ def build_server(repo: Path) -> FastMCP:
     server = FastMCP("patchpilot-repo", log_level="WARNING")
 
     @server.tool()
-    def read_file(path: str) -> str:
-        """Read a file in the repository. Paths are relative to the repo root."""
-        return filesystem.read_file(repo, path)
+    def read_file(path: str, start_line: int = 1, max_lines: int | None = None) -> str:
+        """Read a file in the repository. Paths are relative to the repo root. For large files, pass start_line and max_lines to read a slice."""
+        return filesystem.read_file(repo, path, start_line, max_lines)
 
     @server.tool()
     def list_directory(path: str = ".") -> str:

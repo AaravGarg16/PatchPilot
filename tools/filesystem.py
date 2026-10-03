@@ -33,13 +33,18 @@ def _guard_existing_test(repo: Path, target: Path) -> None:
         raise ValueError(f"{rel}: existing test files cannot be modified")
 
 
-def read_file(repo: Path, rel_path: str) -> str:
+def read_file(repo: Path, rel_path: str, start_line: int = 1, max_lines: int | None = None) -> str:
     target = resolve_in_repo(repo, rel_path)
     if not target.is_file():
         raise ValueError(f"not a file: {rel_path}")
     content = target.read_text()
+    if start_line > 1 or max_lines is not None:
+        lines = content.splitlines()
+        end = len(lines) if max_lines is None else min(len(lines), start_line - 1 + max_lines)
+        body = "\n".join(lines[start_line - 1:end])
+        return f"[lines {start_line}-{end} of {len(lines)}]\n{body}"
     if len(content) > MAX_READ_CHARS:
-        return content[:MAX_READ_CHARS] + f"\n[truncated: file is {len(content)} chars]"
+        return content[:MAX_READ_CHARS] + f"\n[truncated: file is {len(content)} chars; read the rest with start_line]"
     return content
 
 

@@ -1,4 +1,7 @@
+import hashlib
 import itertools
+import math
+import re
 from pathlib import Path
 
 from langchain_core.messages import AIMessage
@@ -91,3 +94,24 @@ class _ToolCaller:
         if not self.llm.executor_turns:
             raise AssertionError("executor asked for more turns than the test scripted")
         return self.llm.executor_turns.pop(0)
+
+
+class HashEmbedder:
+    """Deterministic bag-of-words embedder: no model download, and shared words mean higher similarity."""
+
+    model_name = "test-hash"
+    dim = 256
+
+    def _embed(self, text: str) -> list[float]:
+        vector = [0.0] * self.dim
+        vector[0] = 0.01  # never all zeros; cosine distance to a zero vector is undefined
+        for token in re.findall(r"[a-z0-9]+", text.lower()):
+            vector[int(hashlib.md5(token.encode()).hexdigest(), 16) % self.dim] += 1.0
+        norm = math.sqrt(sum(v * v for v in vector))
+        return [v / norm for v in vector]
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [self._embed(t) for t in texts]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._embed(text)

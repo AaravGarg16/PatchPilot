@@ -1,11 +1,23 @@
+from pathlib import Path
+
+from agent.context import ContextBudget, build_code_context, fit
 from agent.prompts import planner as prompts
 from agent.schemas import Plan
 from agent.state import PatchPilotState
 
 
 def build_planner_message(state: PatchPilotState) -> str:
-    files = "\n".join(state.repo_metadata.files)
-    return f"## Issue\n{state.issue}\n\n## Repository files\n{files}"
+    budget = ContextBudget(total_tokens=state.context_budget)
+    code = build_code_context(
+        Path(state.repo_metadata.path), state.retrieved_files, state.retrieved_chunks, budget.tokens("code")
+    )
+    # The planner writes the plan rather than reading one, so the file list gets the plan share.
+    files = fit("\n".join(state.repo_metadata.files), budget.tokens("plan"))
+    return (
+        f"## Issue\n{fit(state.issue, budget.tokens('task'))}\n\n"
+        f"## Retrieved code\n{code}\n\n"
+        f"## Repository files\n{files}"
+    )
 
 
 def plan(state: PatchPilotState, llm) -> dict:

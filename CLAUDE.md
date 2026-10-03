@@ -14,7 +14,7 @@ Every phase ends the same way: something runs, tests pass, and we commit.
 
 ## Current phase
 
-Phase 3: Real agent.
+Phase 4: Retrieval.
 
 ## Tech stack
 

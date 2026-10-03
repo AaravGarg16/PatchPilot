@@ -2,7 +2,14 @@ from pathlib import Path
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
-from agent.feedback import tail
+from agent.context import (
+    ContextBudget,
+    build_code_context,
+    compress_tool_outputs,
+    estimate_tokens,
+    fit,
+    render_failures,
+)
 from agent.prompts import executor as prompts
 from agent.state import PatchPilotState
 from tools import git
@@ -13,19 +20,33 @@ MAX_STEPS = 25
 
 
 def build_executor_message(state: PatchPilotState, current_diff: str) -> str:
-    parts = [f"## Issue\n{state.issue}", f"## Plan\n{state.plan.model_dump_json(indent=2)}"]
+    budget = ContextBudget(total_tokens=state.context_budget)
+    repo = Path(state.repo_metadata.path)
+    parts = [
+        f"## Issue\n{fit(state.issue, budget.tokens('task'))}",
+        f"## Plan\n{fit(state.plan.model_dump_json(indent=2), budget.tokens('plan'))}",
+    ]
+
+    code_tokens = budget.tokens("code")
     if state.failure_history:
+        # Diff-aware context: the diff shares the code budget, since the files below already contain it.
+        diff = fit(current_diff, code_tokens // 4, keep="head")
+        code_tokens -= estimate_tokens(diff)
         parts.append(
             f"## Earlier attempts failed ({state.attempt_number} of {state.max_attempts} used)\n"
-            + "\n\n".join(state.failure_history)
+            + render_failures(state.failure_history, budget.tokens("failures"))
         )
-        parts.append(f"## Current diff (already applied)\n```diff\n{tail(current_diff)}\n```")
+        parts.append(f"## Current diff (already applied)\n```diff\n{diff}\n```")
+
+    files = [*state.plan.relevant_files, *state.retrieved_files]
+    parts.append(f"## Retrieved code\n{build_code_context(repo, files, state.retrieved_chunks, code_tokens)}")
     return "\n\n".join(parts)
 
 
 async def implement(state: PatchPilotState, llm) -> dict:
     repo = Path(state.repo_metadata.path)
-    calls = errors = 0
+    tool_budget = ContextBudget(total_tokens=state.context_budget).tokens("tool_outputs")
+    calls = errors = elided = 0
     summary = "executor stopped without a summary"
 
     async with repo_tools(repo) as tools:
@@ -37,6 +58,7 @@ async def implement(state: PatchPilotState, llm) -> dict:
         ]
 
         for _ in range(MAX_STEPS):
+            elided += compress_tool_outputs(messages, tool_budget)
             reply: AIMessage = await model.ainvoke(messages)
             messages.append(reply)
             if not reply.tool_calls:
@@ -61,4 +83,5 @@ async def implement(state: PatchPilotState, llm) -> dict:
         "patch_summary": summary,
         "tool_calls": state.tool_calls + calls,
         "tool_errors": state.tool_errors + errors,
+        "elided_tool_outputs": state.elided_tool_outputs + elided,
     }

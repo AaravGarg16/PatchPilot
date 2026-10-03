@@ -32,13 +32,17 @@ def retry(*problems: str, tests_pass: bool = False) -> Evaluation:
     )
 
 
-def run(llm, tmp_path, **state):
-    graph = build_graph(llm, workspace_root=str(tmp_path))
-    initial = PatchPilotState(repo_id=FIXTURE_REPO, issue="Pagination skips the first page", **state)
-    return asyncio.run(graph.ainvoke(initial))
+@pytest.fixture
+def run(retriever, tmp_path):
+    def _run(llm, **state):
+        graph = build_graph(llm, retriever, workspace_root=str(tmp_path))
+        initial = PatchPilotState(repo_id=FIXTURE_REPO, issue="Pagination skips the first page", **state)
+        return asyncio.run(graph.ainvoke(initial))
+
+    return _run
 
 
-def test_fixes_bug_after_evaluator_feedback(tmp_path):
+def test_fixes_bug_after_evaluator_feedback(run):
     llm = FakeLLM(
         {Plan: [PLAN], Evaluation: [retry("total_pages still floors 25/10 to 2"), FINISH]},
         executor_turns=[
@@ -47,7 +51,7 @@ def test_fixes_bug_after_evaluator_feedback(tmp_path):
         ],
     )
 
-    result = run(llm, tmp_path)
+    result = run(llm)
 
     assert result["success"] is True
     assert result["attempt_number"] == 2
@@ -59,7 +63,8 @@ def test_fixes_bug_after_evaluator_feedback(tmp_path):
 
     # The failure from attempt 1 (test output plus evaluator problems) is fed into attempt 2.
     (history,) = result["failure_history"]
-    assert "test_total_pages_rounds_up" in history and "total_pages still floors" in history
+    assert "test_total_pages_rounds_up" in history.test_output
+    assert history.problems == ["total_pages still floors 25/10 to 2"]
     first, second = llm.executor_task_prompts()
     assert "Earlier attempts failed" not in first
     assert "total_pages still floors" in second
@@ -67,17 +72,17 @@ def test_fixes_bug_after_evaluator_feedback(tmp_path):
     assert "Earlier failed attempts" in llm.prompts_for(Evaluation)[1]
 
 
-def test_executor_discovers_tools_over_mcp(tmp_path):
+def test_executor_discovers_tools_over_mcp(run):
     llm = FakeLLM({Plan: [PLAN], Evaluation: [FINISH]}, executor_turns=[FIX_PAGINATE, FIX_TOTAL_PAGES, done()])
 
-    run(llm, tmp_path)
+    run(llm)
 
     assert llm.bound_tool_names == [
         "create_file", "edit_file", "git_diff", "list_directory", "read_file", "run_linter", "run_tests", "search_code",
     ]
 
 
-def test_evaluator_can_reject_a_patch_whose_tests_pass(tmp_path):
+def test_evaluator_can_reject_a_patch_whose_tests_pass(run):
     llm = FakeLLM(
         {Plan: [PLAN], Evaluation: [retry("Remove the unrelated helper", tests_pass=True), FINISH]},
         executor_turns=[
@@ -86,17 +91,17 @@ def test_evaluator_can_reject_a_patch_whose_tests_pass(tmp_path):
         ],
     )
 
-    result = run(llm, tmp_path)
+    result = run(llm)
 
     assert result["attempt_number"] == 2
     assert result["success"] is True
     assert "Remove the unrelated helper" in llm.executor_task_prompts()[1]
 
 
-def test_failing_tests_overrule_an_evaluator_that_says_finish(tmp_path):
+def test_failing_tests_overrule_an_evaluator_that_says_finish(run):
     llm = FakeLLM({Plan: [PLAN], Evaluation: [FINISH]}, executor_turns=[FIX_PAGINATE, done(), done()])
 
-    result = run(llm, tmp_path, max_attempts=2)
+    result = run(llm, max_attempts=2)
 
     assert result["success"] is False
     assert result["attempt_number"] == 2
@@ -105,14 +110,14 @@ def test_failing_tests_overrule_an_evaluator_that_says_finish(tmp_path):
     assert len(result["failure_history"]) == 2
 
 
-def test_tool_errors_go_back_to_the_model_and_are_counted(tmp_path):
+def test_tool_errors_go_back_to_the_model_and_are_counted(run):
     cheat = tool_call("edit_file", path="tests/test_pagination.py", old_string="import pytest", new_string="")
     llm = FakeLLM(
         {Plan: [PLAN], Evaluation: [FINISH]},
         executor_turns=[cheat, tool_call("delete_everything"), FIX_PAGINATE, FIX_TOTAL_PAGES, done()],
     )
 
-    result = run(llm, tmp_path)
+    result = run(llm)
 
     assert result["success"] is True
     assert (result["tool_calls"], result["tool_errors"]) == (4, 2)
@@ -122,46 +127,86 @@ def test_tool_errors_go_back_to_the_model_and_are_counted(tmp_path):
     assert "unknown tool: delete_everything" in llm.executor_calls[2][-1].content
 
 
-def test_executor_step_limit_ends_the_attempt(tmp_path, monkeypatch):
+def test_executor_step_limit_ends_the_attempt(run, monkeypatch):
     monkeypatch.setattr(executor, "MAX_STEPS", 3)
     llm = FakeLLM(
         {Plan: [PLAN], Evaluation: [retry("No changes were made")]},
         executor_turns=[tool_call("list_directory") for _ in range(3)],
     )
 
-    result = run(llm, tmp_path, max_attempts=1)
+    result = run(llm, max_attempts=1)
 
     assert result["success"] is False
     assert "step limit" in result["patch_summary"]
     assert len(llm.executor_calls) == 3
 
 
-def test_lint_problems_reach_the_evaluator(tmp_path):
+def test_lint_problems_reach_the_evaluator(run):
     unused_import = tool_call(
         "edit_file", path="shop/pagination.py", old_string="def total_pages", new_string="import os\n\n\ndef total_pages"
     )
     llm = FakeLLM({Plan: [PLAN], Evaluation: [FINISH]}, executor_turns=[FIX_PAGINATE, FIX_TOTAL_PAGES, unused_import, done()])
 
-    result = run(llm, tmp_path)
+    result = run(llm)
 
     assert not result["lint_results"].passed
     assert "F401" in llm.prompts_for(Evaluation)[0]
 
 
-def test_planner_sees_paths_not_file_contents(tmp_path):
+def test_planner_gets_retrieved_code_and_file_list(run):
     llm = FakeLLM({Plan: [PLAN], Evaluation: [FINISH]}, executor_turns=[FIX_PAGINATE, FIX_TOTAL_PAGES, done()])
 
-    result = run(llm, tmp_path)
+    result = run(llm)
 
+    assert result["indexed_chunks"] > 0
+    assert result["retrieved_files"][0] == "shop/pagination.py"
     (planner_prompt,) = llm.prompts_for(Plan)
-    assert "shop/pagination.py" in planner_prompt
-    assert "def paginate" not in planner_prompt
+    assert "### shop/pagination.py (whole file)" in planner_prompt
+    assert "## Repository files\n" in planner_prompt and "README.md" in planner_prompt
     assert result["plan"].relevant_files == ["shop/pagination.py", "tests/test_pagination.py"]
 
 
-def test_planner_with_no_real_files_fails_loudly(tmp_path):
+def test_index_is_dropped_when_the_run_ends(run, retriever):
+    llm = FakeLLM({Plan: [PLAN], Evaluation: [FINISH]}, executor_turns=[FIX_PAGINATE, FIX_TOTAL_PAGES, done()])
+
+    result = run(llm)
+
+    assert retriever.store.count(result["index_id"]) == 0
+
+
+def test_retry_refreshes_the_index_with_edited_code(run):
+    llm = FakeLLM(
+        {Plan: [PLAN], Evaluation: [retry("total_pages still floors"), FINISH]},
+        executor_turns=[FIX_PAGINATE, done(), FIX_TOTAL_PAGES, done()],
+    )
+
+    result = run(llm)
+
+    (paginate,) = [c for c in result["retrieved_chunks"] if c.symbol == "paginate"]
+    assert "(page - 1) * per_page" in paginate.content
+    # The refresh searched with the evaluator's problem, and the retry prompt shows the edited file.
+    assert "start = (page - 1) * per_page" in llm.executor_task_prompts()[1].split("## Retrieved code")[1]
+
+
+def test_old_tool_outputs_are_elided_under_a_tight_budget(run):
+    reads = [tool_call("read_file", path=p) for p in ("tests/test_pagination.py", "shop/formatting.py", "README.md")]
+    llm = FakeLLM(
+        {Plan: [PLAN], Evaluation: [FINISH]},
+        executor_turns=[*reads, FIX_PAGINATE, FIX_TOTAL_PAGES, done()],
+    )
+
+    result = run(llm, context_budget=3000)
+
+    assert result["success"] is True
+    assert result["elided_tool_outputs"] >= 1
+    last_call = llm.executor_calls[-1]
+    assert any(isinstance(m.content, str) and m.content.startswith("[elided read_file") for m in last_call)
+    assert len(llm.executor_task_prompts()[0]) <= 3000 * 4
+
+
+def test_planner_with_no_real_files_fails_loudly(run):
     bad_plan = PLAN.model_copy(update={"relevant_files": ["nope.py"]})
     llm = FakeLLM({Plan: [bad_plan], Evaluation: [FINISH]})
 
     with pytest.raises(ValueError, match="no files that exist"):
-        run(llm, tmp_path)
+        run(llm)
