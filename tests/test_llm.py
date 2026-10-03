@@ -1,4 +1,10 @@
-from agent.llm import DEFAULT_MODEL, DEFAULT_PROVIDER, LLMSettings, get_chat_model, load_llm_settings
+from agent.llm import (
+    DEFAULT_MODEL,
+    DEFAULT_PROVIDER,
+    LLMSettings,
+    get_chat_model,
+    load_llm_settings,
+)
 
 
 def test_defaults_when_env_unset(monkeypatch):

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -11,11 +13,9 @@ class Plan(BaseModel):
     risks: list[str]
 
 
-class FileEdit(BaseModel):
-    path: str = Field(description="Repository-relative path of the file to write.")
-    content: str = Field(description="The complete new content of the file, not a fragment.")
-
-
-class Patch(BaseModel):
-    summary: str = Field(description="One or two sentences on what the edits change and why.")
-    edits: list[FileEdit]
+class Evaluation(BaseModel):
+    correct: bool = Field(description="The diff is a correct fix for the issue.")
+    requirements_met: bool = Field(description="Every behavior the issue asks for is addressed.")
+    tests_pass: bool
+    problems: list[str] = Field(description="Concrete, actionable problems for the executor to fix. Empty if none.")
+    recommended_action: Literal["finish", "retry"]

@@ -27,7 +27,7 @@ def run_tests(repo: Path, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> TestResult:
     }
     cmd = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"]
     try:
-        result = subprocess.run(cmd, cwd=repo, env=env, capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run(cmd, cwd=repo, env=env, capture_output=True, text=True, timeout=timeout, check=False)
     except subprocess.TimeoutExpired as e:
         output = (e.stdout or b"").decode() if isinstance(e.stdout, bytes) else (e.stdout or "")
         return TestResult(passed=False, exit_code=None, output=output + f"\nTimed out after {timeout}s", timed_out=True)

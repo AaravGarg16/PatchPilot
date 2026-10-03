@@ -7,7 +7,7 @@ _GIT_CONFIG = ["-c", "user.name=PatchPilot", "-c", "user.email=patchpilot@localh
 
 
 def _git(repo: Path, *args: str) -> str:
-    result = subprocess.run(["git", *_GIT_CONFIG, *args], cwd=repo, capture_output=True, text=True)
+    result = subprocess.run(["git", *_GIT_CONFIG, *args], cwd=repo, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         raise RuntimeError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
     return result.stdout
@@ -36,3 +36,27 @@ def diff(repo: Path) -> str:
     # Stage everything first so newly created files show up in the diff too.
     _git(repo, "add", "-A")
     return _git(repo, "diff", "--cached")
+
+
+def changed_files(repo: Path) -> list[str]:
+    _git(repo, "add", "-A")
+    return _git(repo, "diff", "--cached", "--name-only").splitlines()
+
+
+MAX_SEARCH_MATCHES = 100
+
+
+def search_code(repo: Path, pattern: str) -> str:
+    """Regex search over tracked and new files, with line numbers."""
+    result = subprocess.run(
+        ["git", "grep", "-n", "-I", "-E", "--untracked", "-e", pattern],
+        cwd=repo, capture_output=True, text=True, check=False,
+    )
+    if result.returncode == 1:
+        return "no matches"
+    if result.returncode != 0:
+        raise ValueError(f"search failed: {result.stderr.strip()}")
+    lines = result.stdout.splitlines()
+    if len(lines) > MAX_SEARCH_MATCHES:
+        return "\n".join(lines[:MAX_SEARCH_MATCHES]) + f"\n[{len(lines) - MAX_SEARCH_MATCHES} more matches not shown]"
+    return "\n".join(lines)

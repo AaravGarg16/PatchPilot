@@ -1,8 +1,8 @@
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from agent.schemas import Plan
+from agent.schemas import Evaluation, Plan
+from tools.linting import LintResult
 from tools.testing import TestResult
 
 
@@ -12,20 +12,26 @@ class RepoMetadata(BaseModel):
 
 
 class PatchPilotState(BaseModel):
-    """Shared LangGraph state. Later phases add retrieval, lint, evaluation and cost fields."""
+    """Shared LangGraph state. Later phases add retrieval and cost fields."""
 
-    repo_id: Optional[str] = None
-    issue: Optional[str] = None
-    repo_metadata: Optional[RepoMetadata] = None
+    repo_id: str | None = None
+    issue: str | None = None
+    repo_metadata: RepoMetadata | None = None
 
-    plan: Optional[Plan] = None
+    plan: Plan | None = None
 
     modified_files: list[str] = Field(default_factory=list)
-    rejected_edits: list[str] = Field(default_factory=list)
-    patch_summary: Optional[str] = None
-    diff: Optional[str] = None
-    test_results: Optional[TestResult] = None
-    success: Optional[bool] = None
+    patch_summary: str | None = None
+    diff: str | None = None
+    test_results: TestResult | None = None
+    lint_results: LintResult | None = None
+
+    evaluation: Evaluation | None = None
+    failure_history: list[str] = Field(default_factory=list)
+    success: bool | None = None
 
     attempt_number: int = 0
     max_attempts: int = 3
+
+    tool_calls: int = 0
+    tool_errors: int = 0
