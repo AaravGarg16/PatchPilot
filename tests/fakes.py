@@ -4,6 +4,7 @@ import math
 import re
 from pathlib import Path
 
+from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
 from langchain_core.messages import AIMessage
 
 FIXTURE_REPO = str(Path(__file__).resolve().parents[1] / "examples" / "pagination_repo")
@@ -27,13 +28,35 @@ def paginate(items: list, page: int, per_page: int) -> list:
 
 _ids = itertools.count()
 
+# Every fake reply reports this usage, so token and cost tracking can be checked exactly.
+FAKE_USAGE = {"input_tokens": 1000, "output_tokens": 100, "total_tokens": 1100}
+FAKE_MODEL = "claude-sonnet-5"
+
+
+def _reply(**kwargs) -> AIMessage:
+    return AIMessage(usage_metadata=FAKE_USAGE, response_metadata={"model_name": FAKE_MODEL}, **kwargs)
+
 
 def tool_call(name: str, **args) -> AIMessage:
-    return AIMessage(content="", tool_calls=[{"name": name, "args": args, "id": f"call_{next(_ids)}"}])
+    return _reply(content="", tool_calls=[{"name": name, "args": args, "id": f"call_{next(_ids)}"}])
 
 
 def done(summary: str = "Fixed it.") -> AIMessage:
-    return AIMessage(content=summary)
+    return _reply(content=summary)
+
+
+class FakeChatModel(FakeMessagesListChatModel):
+    # LangChain reports this as ls_model_name, which is where Langfuse reads the model name from.
+    model: str = FAKE_MODEL
+
+
+def _emit(reply: AIMessage, messages, config):
+    """Pass the reply through a real LangChain chat model, so callbacks (usage, tracing) fire as in a real run."""
+    return FakeChatModel(responses=[reply]).invoke(messages, config=config)
+
+
+async def _aemit(reply: AIMessage, messages, config):
+    return await FakeChatModel(responses=[reply]).ainvoke(messages, config=config)
 
 
 # The two halves of the real fix, as edit_file calls against the fixture repo.
@@ -79,21 +102,23 @@ class _Structured:
     def __init__(self, llm: FakeLLM, schema):
         self.llm, self.schema = llm, schema
 
-    def invoke(self, messages):
+    def invoke(self, messages, config=None):
         self.llm.structured_calls.append((self.schema, messages))
         queue = self.llm.structured[self.schema]
-        return queue.pop(0) if len(queue) > 1 else queue[0]
+        result = queue.pop(0) if len(queue) > 1 else queue[0]
+        _emit(_reply(content=result.model_dump_json()), messages, config)
+        return result
 
 
 class _ToolCaller:
     def __init__(self, llm: FakeLLM):
         self.llm = llm
 
-    async def ainvoke(self, messages):
+    async def ainvoke(self, messages, config=None):
         self.llm.executor_calls.append(list(messages))
         if not self.llm.executor_turns:
             raise AssertionError("executor asked for more turns than the test scripted")
-        return self.llm.executor_turns.pop(0)
+        return await _aemit(self.llm.executor_turns.pop(0), messages, config)
 
 
 class HashEmbedder:

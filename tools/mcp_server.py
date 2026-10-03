@@ -1,12 +1,14 @@
 """MCP server exposing the executor's tools for one repository.
 
-Run as `python -m tools.mcp_server <repo_path>`; the agent connects over stdio and discovers the tools.
+Run as `python -m tools.mcp_server <repo_path> <sandbox_name>`; the agent connects over stdio and discovers
+the tools. File tools work on the host workspace; tests and lint execute in the run's sandbox container.
 """
 import sys
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
+from sandbox.runner import Sandbox
 from tools import filesystem, git, linting, testing
 
 MAX_OUTPUT_CHARS = 6000
@@ -18,7 +20,7 @@ def _tail(text: str) -> str:
     return "[earlier output truncated]\n" + text[-MAX_OUTPUT_CHARS:]
 
 
-def build_server(repo: Path) -> FastMCP:
+def build_server(repo: Path, sandbox: Sandbox) -> FastMCP:
     server = FastMCP("patchpilot-repo", log_level="WARNING")
 
     @server.tool()
@@ -50,14 +52,14 @@ def build_server(repo: Path) -> FastMCP:
 
     @server.tool()
     def run_tests() -> str:
-        """Run the repository's test suite and return pass/fail plus the output."""
-        result = testing.run_tests(repo)
+        """Run the repository's test suite (in an isolated sandbox) and return pass/fail plus the output."""
+        result = testing.run_tests(sandbox)
         return f"{'PASSED' if result.passed else 'FAILED'}\n{_tail(result.output)}"
 
     @server.tool()
     def run_linter() -> str:
         """Lint the files changed so far."""
-        result = linting.run_linter(repo, git.changed_files(repo))
+        result = linting.run_linter(sandbox, repo, git.changed_files(repo))
         return f"{'CLEAN' if result.passed else 'PROBLEMS'}\n{_tail(result.output)}"
 
     @server.tool()
@@ -69,4 +71,4 @@ def build_server(repo: Path) -> FastMCP:
 
 
 if __name__ == "__main__":
-    build_server(Path(sys.argv[1]).resolve()).run(transport="stdio")
+    build_server(Path(sys.argv[1]).resolve(), Sandbox.attach(sys.argv[2])).run(transport="stdio")

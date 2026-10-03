@@ -1,6 +1,6 @@
 from pathlib import Path
 
-# The one hardcoded Phase 2 target. A trusted local fixture, since repo code runs on the host until Phase 5.
+# The hardcoded target for manual runs: a local fixture with a known bug. Its code runs in the sandbox like any repo.
 REPO = str(Path(__file__).resolve().parents[1] / "examples" / "pagination_repo")
 
 ISSUE = """Pagination skips the first page and drops the last partial page

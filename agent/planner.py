@@ -22,7 +22,7 @@ def build_planner_message(state: PatchPilotState) -> str:
 
 def plan(state: PatchPilotState, llm) -> dict:
     messages = [("system", prompts.SYSTEM), ("human", build_planner_message(state))]
-    result: Plan = llm.with_structured_output(Plan, method="json_schema").invoke(messages)
+    result: Plan = llm.with_structured_output(Plan, method="json_schema").invoke(messages, config={"run_name": "planner"})
 
     # Models sometimes invent paths; keep only files that actually exist.
     known = set(state.repo_metadata.files)

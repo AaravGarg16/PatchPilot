@@ -30,7 +30,8 @@ def build_evaluator_message(state: PatchPilotState, diff: str) -> str:
 def evaluate(state: PatchPilotState, llm) -> dict:
     diff = git.diff(Path(state.repo_metadata.path))
     messages = [("system", prompts.SYSTEM), ("human", build_evaluator_message(state, diff))]
-    evaluation: Evaluation = llm.with_structured_output(Evaluation, method="json_schema").invoke(messages)
+    run_config = {"run_name": f"evaluator attempt {state.attempt_number}", "metadata": {"attempt": state.attempt_number}}
+    evaluation: Evaluation = llm.with_structured_output(Evaluation, method="json_schema").invoke(messages, config=run_config)
 
     # Real test results overrule the model: a patch with failing tests is never accepted.
     accepted = state.test_results.passed and evaluation.correct and evaluation.recommended_action == "finish"

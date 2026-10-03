@@ -49,7 +49,10 @@ async def implement(state: PatchPilotState, llm) -> dict:
     calls = errors = elided = 0
     summary = "executor stopped without a summary"
 
-    async with repo_tools(repo) as tools:
+    attempt = state.attempt_number + 1
+    run_config = {"run_name": f"executor attempt {attempt}", "metadata": {"attempt": attempt}}
+
+    async with repo_tools(repo, state.sandbox_id) as tools:
         by_name = {tool.name: tool for tool in tools}
         model = llm.bind_tools(tools)
         messages = [
@@ -59,7 +62,7 @@ async def implement(state: PatchPilotState, llm) -> dict:
 
         for _ in range(MAX_STEPS):
             elided += compress_tool_outputs(messages, tool_budget)
-            reply: AIMessage = await model.ainvoke(messages)
+            reply: AIMessage = await model.ainvoke(messages, config=run_config)
             messages.append(reply)
             if not reply.tool_calls:
                 summary = reply.text or summary
@@ -78,7 +81,7 @@ async def implement(state: PatchPilotState, llm) -> dict:
             summary = f"executor hit the {MAX_STEPS}-step limit before finishing"
 
     return {
-        "attempt_number": state.attempt_number + 1,
+        "attempt_number": attempt,
         "modified_files": git.changed_files(repo),
         "patch_summary": summary,
         "tool_calls": state.tool_calls + calls,

@@ -22,11 +22,15 @@ class FailureRecord(BaseModel):
 
 
 class PatchPilotState(BaseModel):
-    """Shared LangGraph state. Cost and latency fields arrive with observability in Phase 5."""
+    """Shared LangGraph state. Run-level metrics (tokens, cost, latency) live on RunReport in agent/run.py."""
 
+    run_id: str | None = None
     repo_id: str | None = None
     issue: str | None = None
     repo_metadata: RepoMetadata | None = None
+
+    sandbox_id: str | None = None
+    tests_before: TestResult | None = None
 
     index_id: str | None = None
     indexed_chunks: int = 0

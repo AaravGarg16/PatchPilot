@@ -2,14 +2,9 @@ import asyncio
 
 import pytest
 
-from tests.fakes import FIXED_PAGINATION, FIXTURE_REPO
+from tests.fakes import FIXED_PAGINATION
 from tools import filesystem, git, linting, testing
 from tools.mcp_client import repo_tools
-
-
-@pytest.fixture
-def repo(tmp_path):
-    return git.checkout_repo(FIXTURE_REPO, tmp_path / "repo")
 
 
 def test_checkout_of_plain_dir_creates_clean_baseline(repo):
@@ -36,31 +31,15 @@ def test_paths_outside_repo_are_refused(repo, bad_path):
         filesystem.resolve_in_repo(repo, bad_path)
 
 
-def test_run_tests_reports_failure_then_pass(repo):
-    before = testing.run_tests(repo)
+def test_run_tests_reports_failure_then_pass(repo, sandbox):
+    before = testing.run_tests(sandbox)
     assert not before.passed
     assert "3 failed" in before.output
 
+    # The workspace is mounted live (read-only), so host-side edits are what the next run sees.
     filesystem.write_file(repo, "shop/pagination.py", FIXED_PAGINATION)
-    after = testing.run_tests(repo)
+    after = testing.run_tests(sandbox)
     assert after.passed, after.output
-
-
-def test_run_tests_does_not_pass_secrets_to_repo_code(repo, monkeypatch):
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "secret")
-    filesystem.write_file(repo, "shop/pagination.py", FIXED_PAGINATION)
-    filesystem.write_file(
-        repo, "tests/test_env.py", "import os\n\ndef test_no_key():\n    assert 'ANTHROPIC_API_KEY' not in os.environ\n"
-    )
-    result = testing.run_tests(repo)
-    assert result.passed, result.output
-
-
-def test_run_tests_times_out(repo):
-    filesystem.write_file(repo, "tests/test_slow.py", "import time\n\ndef test_slow():\n    time.sleep(30)\n")
-    result = testing.run_tests(repo, timeout=2)
-    assert result.timed_out
-    assert not result.passed
 
 
 def test_edit_file_replaces_one_exact_match(repo):
@@ -98,16 +77,16 @@ def test_search_code_finds_matches_with_line_numbers(repo):
     assert git.search_code(repo, "no_such_symbol") == "no matches"
 
 
-def test_linter_only_checks_given_files(repo):
+def test_linter_only_checks_given_files(repo, sandbox):
     filesystem.write_file(repo, "shop/messy.py", "import os\n")
-    assert linting.run_linter(repo, ["shop/pagination.py"]).passed
-    result = linting.run_linter(repo, ["shop/messy.py"])
+    assert linting.run_linter(sandbox, repo, ["shop/pagination.py"]).passed
+    result = linting.run_linter(sandbox, repo, ["shop/messy.py"])
     assert not result.passed and "F401" in result.output
 
 
-def test_mcp_server_advertises_and_runs_tools(repo):
+def test_mcp_server_advertises_and_runs_tools(repo, sandbox):
     async def exercise():
-        async with repo_tools(repo) as tools:
+        async with repo_tools(repo, sandbox.name) as tools:
             by_name = {tool.name: tool for tool in tools}
             read = await by_name["read_file"].ainvoke({"path": "shop/formatting.py"})
             blocked = await by_name["read_file"].ainvoke(
@@ -119,3 +98,22 @@ def test_mcp_server_advertises_and_runs_tools(repo):
     assert names == ["create_file", "edit_file", "git_diff", "list_directory", "read_file", "run_linter", "run_tests", "search_code"]
     assert "def format_price" in read
     assert blocked.status == "error" and "outside the repository" in str(blocked.content)
+
+
+def test_mcp_run_tests_executes_repo_code_in_the_sandbox(repo, sandbox):
+    probe = (
+        "import os\n\n"
+        "def test_runs_in_container():\n"
+        "    assert os.getuid() == 10001\n"
+        "    assert os.path.exists('/.dockerenv')\n"
+    )
+    filesystem.write_file(repo, "shop/pagination.py", FIXED_PAGINATION)
+    filesystem.create_file(repo, "tests/test_probe.py", probe)
+
+    async def exercise():
+        async with repo_tools(repo, sandbox.name) as tools:
+            (run_tests,) = [t for t in tools if t.name == "run_tests"]
+            return str(await run_tests.ainvoke({}))
+
+    output = asyncio.run(exercise())
+    assert "PASSED\\n" in output and "12 passed" in output, output

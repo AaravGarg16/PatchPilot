@@ -10,15 +10,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 @asynccontextmanager
-async def repo_tools(repo: Path):
-    """Start the MCP server for a repo and yield the tools it advertises."""
+async def repo_tools(repo: Path, sandbox_name: str):
+    """Start the MCP server for a repo and its sandbox, and yield the tools it advertises."""
     client = MultiServerMCPClient({
         "repo": {
             "transport": "stdio",
             "command": sys.executable,
-            "args": ["-m", "tools.mcp_server", str(repo)],
+            "args": ["-m", "tools.mcp_server", str(repo), sandbox_name],
             "cwd": str(PROJECT_ROOT),
             # The MCP client passes only a safe subset of the parent env (PATH, HOME...), never API keys.
+            # PATH and HOME are also what the docker CLI needs to reach the sandbox.
             "env": {},
         }
     })
