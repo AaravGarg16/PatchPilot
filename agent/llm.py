@@ -6,6 +6,8 @@ from pydantic import BaseModel
 
 DEFAULT_PROVIDER = "anthropic"
 DEFAULT_MODEL = "claude-sonnet-5"
+# Explicit cap so cost per call is predictable; whole-file edits still fit comfortably.
+MAX_TOKENS = 16000
 
 
 class LLMSettings(BaseModel):
@@ -23,4 +25,4 @@ def load_llm_settings() -> LLMSettings:
 
 def get_chat_model(settings: LLMSettings | None = None):
     settings = settings or load_llm_settings()
-    return init_chat_model(settings.model, model_provider=settings.provider)
+    return init_chat_model(settings.model, model_provider=settings.provider, max_tokens=MAX_TOKENS)
