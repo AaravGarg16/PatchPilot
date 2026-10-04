@@ -14,7 +14,7 @@ Every phase ends the same way: something runs, tests pass, and we commit.
 
 ## Current phase
 
-Phase 5: Safety and observability.
+Phase 6: Evals.
 
 ## Tech stack
 

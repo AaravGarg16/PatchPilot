@@ -14,6 +14,7 @@ class UsageTracker(BaseCallbackHandler):
         self._lock = threading.Lock()  # sync callbacks can fire from LangGraph's worker threads
         self.calls = 0
         self.by_model: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+        self.prompt_tokens: list[int] = []  # input tokens per call, for context utilization
 
     def on_llm_end(self, response: LLMResult, **kwargs) -> None:
         for generations in response.generations:
@@ -24,6 +25,7 @@ class UsageTracker(BaseCallbackHandler):
                 with self._lock:
                     self.calls += 1
                     self.by_model[model][0] += usage.get("input_tokens", 0)
+                    self.prompt_tokens.append(usage.get("input_tokens", 0))
                     self.by_model[model][1] += usage.get("output_tokens", 0)
 
     @property

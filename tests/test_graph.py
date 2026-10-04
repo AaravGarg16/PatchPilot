@@ -6,6 +6,7 @@ import pytest
 from agent import executor
 from agent.run import run_issue
 from agent.schemas import Evaluation, Plan
+from evals.configs import CONFIGS
 from tests.fakes import (
     FAKE_MODEL,
     FAKE_USAGE,
@@ -16,6 +17,7 @@ from tests.fakes import (
     done,
     tool_call,
 )
+from tools import git
 
 PLAN = Plan(
     problem="paginate is off by one page and total_pages floors instead of rounding up.",
@@ -262,3 +264,95 @@ def test_sandbox_and_index_are_cleaned_up_when_a_run_crashes(run_report, retriev
     assert seen["sandbox_id"]  # the container did start before the crash
     assert containers_for(seen["run_id"]) == ""
     assert retriever.store.count(seen["run_id"]) == 0
+
+
+# --- component switches (ablation) and context modes -------------------------------------------------------------
+
+
+def test_baseline_runs_without_retrieval_planner_or_evaluator(run_report):
+    llm = FakeLLM({}, executor_turns=[FIX_PAGINATE, FIX_TOTAL_PAGES, done()])
+
+    state = run_report(llm, agent_config=CONFIGS["baseline"]).state
+
+    assert state.success is True and state.attempt_number == 1
+    assert llm.structured_calls == []  # no planner, no evaluator
+    assert state.indexed_chunks == 0 and state.retrieved_files == [] and state.plan is None
+    (task_prompt,) = llm.executor_task_prompts()
+    assert "## Plan" not in task_prompt and "Nothing was retrieved" in task_prompt
+
+
+def test_baseline_retries_on_failing_tests_alone(run_report):
+    llm = FakeLLM({}, executor_turns=[FIX_PAGINATE, done(), FIX_TOTAL_PAGES, done()])
+
+    state = run_report(llm, agent_config=CONFIGS["baseline"]).state
+
+    assert state.success is True and state.attempt_number == 2
+    assert "test_total_pages_rounds_up" in llm.executor_task_prompts()[1]
+
+
+def test_rag_without_planner_puts_retrieved_code_in_the_prompt(run_report):
+    llm = FakeLLM({}, executor_turns=[FIX_PAGINATE, FIX_TOTAL_PAGES, done()])
+
+    state = run_report(llm, agent_config=CONFIGS["rag"]).state
+
+    assert state.indexed_chunks > 0 and state.plan is None
+    (task_prompt,) = llm.executor_task_prompts()
+    assert "### shop/pagination.py (whole file)" in task_prompt and "## Plan" not in task_prompt
+
+
+def test_planner_without_evaluator_is_judged_by_tests(run_report):
+    llm = FakeLLM({Plan: [PLAN]}, executor_turns=[FIX_PAGINATE, FIX_TOTAL_PAGES, done()])
+
+    state = run_report(llm, agent_config=CONFIGS["planner"]).state
+
+    assert state.success is True and state.evaluation is None
+    assert [s for s, _ in llm.structured_calls] == [Plan]
+
+
+def test_full_history_carries_the_transcript_and_never_trims(run_report):
+    reads = [tool_call("read_file", path=p) for p in ("tests/test_pagination.py", "shop/formatting.py", "README.md")]
+    llm = FakeLLM(
+        {Plan: [PLAN], Evaluation: [retry("total_pages still floors"), FINISH]},
+        executor_turns=[*reads, FIX_PAGINATE, done(), FIX_TOTAL_PAGES, done()],
+    )
+
+    state = run_report(llm, agent_config=CONFIGS["full-history"], context_budget=3000).state
+
+    assert state.success is True and state.attempt_number == 2
+    assert state.elided_tool_outputs == 0
+    first_attempt_last_call = llm.executor_calls[4]
+    second_attempt_first_call = llm.executor_calls[5]
+    # Attempt 2 starts from attempt 1's whole transcript, plus the reply that ended it and the new failure.
+    assert second_attempt_first_call[: len(first_attempt_last_call)] == first_attempt_last_call
+    assert "Attempt 1 of 3 failed" in second_attempt_first_call[-1].content
+    assert not any(isinstance(m.content, str) and m.content.startswith("[elided") for m in second_attempt_first_call)
+
+
+def test_index_holds_source_up_front_and_tests_only_once_related(run_report):
+    llm = FakeLLM({Plan: [PLAN], Evaluation: [FINISH]}, executor_turns=[FIX_PAGINATE, FIX_TOTAL_PAGES, done()])
+
+    state = run_report(llm).state
+
+    stats = state.index_stats
+    assert stats.source_chunks > 0 and stats.test_chunks > 0
+    assert "tests/test_pagination.py" in stats.test_files
+    assert state.indexed_chunks == stats.source_chunks + stats.test_chunks
+
+
+def test_related_tests_are_indexed_for_the_given_sources_only(retriever, tmp_path):
+    from agent.graph import index_related_tests, index_source
+
+    repo = git.checkout_repo(FIXTURE_REPO, tmp_path / "repo")
+    files = git.list_files(repo)
+    try:
+        stats = index_source(retriever, "related", repo, files)
+        assert stats.test_chunks == 0 and stats.test_files == []
+        assert retriever.store.symbol_search("related", ["test_first_page_starts_at_first_item"], 5) == []
+
+        stats = index_related_tests(retriever, "related", repo, files, ["shop/pagination.py"], stats)
+        assert stats.test_files == ["tests/test_pagination.py"] and stats.test_chunks > 0
+        assert retriever.store.symbol_search("related", ["test_first_page_starts_at_first_item"], 5)
+        again = index_related_tests(retriever, "related", repo, files, ["shop/pagination.py"], stats)
+        assert again == stats  # already indexed, nothing re-embedded
+    finally:
+        retriever.drop("related")

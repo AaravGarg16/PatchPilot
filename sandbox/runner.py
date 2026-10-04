@@ -18,6 +18,13 @@ HOST_GRACE_SECONDS = 15
 
 class SandboxConfig(BaseModel):
     image: str = DEFAULT_IMAGE
+    # e.g. "linux/amd64" for SWE-bench images, which run under emulation on Apple Silicon.
+    platform: str | None = None
+    # Where the workspace is mounted. SWE-bench images expect the repo at /testbed (their editable installs point there).
+    workdir: str = "/workspace"
+    env: dict[str, str] = {}
+    # SWE-bench images ship with the environment already installed, so they skip the network phase entirely.
+    install_dependencies: bool = True
     limits: SandboxLimits = SandboxLimits()
     command_timeout: int = 120
     install_timeout: int = 600
@@ -51,16 +58,21 @@ class Sandbox:
         config = config or SandboxConfig()
         if _docker("image", "inspect", config.image).returncode != 0:
             raise RuntimeError(f"sandbox image {config.image} not found; build it with: {BUILD_HINT}")
-        needs_network = any((Path(repo) / f).is_file() for f in REQUIREMENT_FILES)
+        needs_network = config.install_dependencies and any((Path(repo) / f).is_file() for f in REQUIREMENT_FILES)
         name = container_name(run_id)
+        platform = ["--platform", config.platform] if config.platform else []
+        env = [arg for key, value in config.env.items() for arg in ("--env", f"{key}={value}")]
         result = _docker(
             "run", "--detach", "--rm",
             "--name", name,
             "--label", f"{LABEL}={run_id}",
+            *platform,
             # Network only while dependencies install; cut right after. Repos with nothing to install never get it.
             "--network", "bridge" if needs_network else "none",
             *hardening_flags(config.limits),
-            "--volume", f"{Path(repo).resolve()}:/workspace:ro",
+            *env,
+            "--workdir", config.workdir,
+            "--volume", f"{Path(repo).resolve()}:{config.workdir}:ro",
             config.image,
             "sleep", str(config.lifetime_seconds),
         )

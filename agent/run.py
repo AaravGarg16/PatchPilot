@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from agent import target
 from agent.graph import _describe, build_graph
-from agent.state import PatchPilotState
+from agent.state import AgentConfig, PatchPilotState
 from observability.langfuse import trace_run
 from observability.usage import UsageTracker
 from retrieval.retriever import Retriever
@@ -25,9 +25,14 @@ class RunReport(BaseModel):
     llm_calls: int
     input_tokens: int
     output_tokens: int
+    # Context utilization: the size of each prompt sent, in input tokens.
+    max_prompt_tokens: int
+    mean_prompt_tokens: float
     cost_usd: float | None
     latency_seconds: float
     trace_id: str | None
+    # Set when the run crashed and raise_errors was False; the metrics then cover what ran before the crash.
+    error: str | None = None
     state: PatchPilotState
 
 
@@ -40,18 +45,25 @@ async def run_issue(
     retriever: Retriever,
     sandbox_config: SandboxConfig | None = None,
     workspace_root: str | None = None,
+    agent_config: AgentConfig | None = None,
     on_update=None,
+    raise_errors: bool = True,
     **state_fields,
 ) -> RunReport:
-    """Run the agent once, traced end to end, and always clean up the run's container and index."""
+    """Run the agent once, traced end to end, and always clean up the run's container and index.
+
+    With raise_errors=False a crash is recorded on the report instead of raised, so evals keep the cost of failures.
+    """
     run_id = uuid.uuid4().hex[:12]
     usage = UsageTracker()
     started = time.monotonic()
-    initial = PatchPilotState(run_id=run_id, repo_id=repo_id, issue=issue, **state_fields)
+    agent_config = agent_config or AgentConfig()
+    initial = PatchPilotState(run_id=run_id, repo_id=repo_id, issue=issue, agent_config=agent_config, **state_fields)
     final: dict = {}
+    error = None
 
     with trace_run(run_id, input={"repo": repo_id, "issue": issue}, metadata={"model": model_name}) as trace:
-        graph = build_graph(llm, retriever, sandbox_config, workspace_root)
+        graph = build_graph(llm, retriever, sandbox_config, workspace_root, agent_config)
         config = {"callbacks": [usage, *trace.callbacks], "run_name": "patchpilot", "metadata": {"run_id": run_id}}
         try:
             async for update in graph.astream(initial, config=config, stream_mode="updates"):
@@ -59,10 +71,15 @@ async def run_issue(
                     final.update(values or {})
                     if on_update:
                         on_update(node, final)
+        except Exception as e:
+            if raise_errors:
+                raise
+            error = f"{type(e).__name__}: {e}"
         finally:
             # finalize does this on the happy path; this covers exceptions and interrupted runs.
             destroy_run(run_id)
-            retriever.drop(run_id)
+            if agent_config.rag:
+                retriever.drop(run_id)
 
         state = initial.model_copy(update=final)
         report = RunReport(
@@ -71,16 +88,19 @@ async def run_issue(
             success=bool(state.success),
             attempts=state.attempt_number,
             retries=max(state.attempt_number - 1, 0),
-            tests_before_passed=state.tests_before.passed if state.tests_before else None,
-            tests_after_passed=state.test_results.passed if state.test_results else None,
+            tests_before_passed=state.tests_before.passed if state.tests_before and state.tests_before.ran else None,
+            tests_after_passed=state.test_results.passed if state.test_results and state.test_results.ran else None,
             tool_calls=state.tool_calls,
             tool_errors=state.tool_errors,
             llm_calls=usage.calls,
             input_tokens=usage.input_tokens,
             output_tokens=usage.output_tokens,
+            max_prompt_tokens=max(usage.prompt_tokens, default=0),
+            mean_prompt_tokens=round(sum(usage.prompt_tokens) / len(usage.prompt_tokens), 1) if usage.prompt_tokens else 0.0,
             cost_usd=usage.cost_usd(),
             latency_seconds=round(time.monotonic() - started, 2),
             trace_id=trace.trace_id,
+            error=error,
             state=state,
         )
         trace.finish(
@@ -98,7 +118,7 @@ async def run_target():
 
     settings = load_llm_settings()
     embedder = load_embedder()
-    print(f"Model: {settings.provider}/{settings.model}; embeddings: {embedder.model_name} (local)")
+    print(f"Model: {settings.provider}/{settings.model}; embeddings: {embedder.describe()}")
     print(f"Langfuse tracing: {'on' if langfuse_enabled() else 'off (set LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY)'}")
 
     def show(node: str, final: dict):
@@ -117,7 +137,10 @@ async def run_target():
 
     cost = f"${report.cost_usd:.4f}" if report.cost_usd is not None else "unknown (model not in price table)"
     print(f"\nResult: {'SUCCESS' if report.success else 'FAILED'} after {report.attempts} attempt(s)")
-    print(f"Tests: {'pass' if report.tests_before_passed else 'fail'} before, {'pass' if report.tests_after_passed else 'fail'} after")
+    def status(passed):
+        return "not run" if passed is None else ("pass" if passed else "fail")
+
+    print(f"Tests: {status(report.tests_before_passed)} before, {status(report.tests_after_passed)} after")
     print(f"LLM calls: {report.llm_calls}; tokens: {report.input_tokens} in / {report.output_tokens} out; cost: {cost}")
     print(f"Tool calls: {report.tool_calls} ({report.tool_errors} errors); latency: {report.latency_seconds}s")
     if report.trace_id:

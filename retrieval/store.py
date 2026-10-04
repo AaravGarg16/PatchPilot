@@ -76,6 +76,16 @@ class ChunkStore:
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS code_chunks_embedding ON code_chunks USING hnsw (embedding vector_cosine_ops)"
             )
+            # Embeddings outlive runs: the same file at the same content embeds once, across tasks and eval configs.
+            # Untyped vector, since different models have different dimensions; it is looked up by key, never searched.
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS embedding_cache (
+                    model text NOT NULL,
+                    content_hash text NOT NULL,
+                    embedding vector NOT NULL,
+                    PRIMARY KEY (model, content_hash)
+                )
+            """)
 
     def add(self, index_id: str, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
         rows = [
@@ -145,3 +155,21 @@ class ChunkStore:
             f"AND (symbol = ANY(%s) OR split_part(symbol, '.', -1) = ANY(%s)) ORDER BY id LIMIT %s",
             [*params, names, names, limit],
         )
+
+    def cached_embeddings(self, model: str, hashes: list[str]) -> dict[str, list[float]]:
+        if not hashes:
+            return {}
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT content_hash, embedding FROM embedding_cache WHERE model = %s AND content_hash = ANY(%s)",
+                (model, hashes),
+            ).fetchall()
+        return {h: e.to_list() for h, e in rows}
+
+    def cache_embeddings(self, model: str, items: dict[str, list[float]]) -> None:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.executemany(
+                "INSERT INTO embedding_cache (model, content_hash, embedding) VALUES (%s, %s, %s::vector) "
+                "ON CONFLICT DO NOTHING",
+                [(model, h, e) for h, e in items.items()],
+            )

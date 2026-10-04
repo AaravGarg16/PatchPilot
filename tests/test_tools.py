@@ -116,4 +116,4 @@ def test_mcp_run_tests_executes_repo_code_in_the_sandbox(repo, sandbox):
             return str(await run_tests.ainvoke({}))
 
     output = asyncio.run(exercise())
-    assert "PASSED\\n" in output and "12 passed" in output, output
+    assert "PASSED (full suite)" in output and "12 passed" in output, output

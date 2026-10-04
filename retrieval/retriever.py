@@ -1,15 +1,22 @@
+import hashlib
 import re
 from collections import defaultdict
 from pathlib import Path
 
 from pydantic import BaseModel
 
-from retrieval.chunker import MAX_FILE_BYTES, chunk_file
+from retrieval.chunker import Chunk, chunk_file, language_for, skip_reason
 from retrieval.embeddings import Embedder
 from retrieval.store import ChunkStore, SearchFilters, StoredChunk
 
 # Standard reciprocal rank fusion constant: damps the advantage of rank 1 so agreement across lists wins.
 RRF_K = 60
+# What gets embedded per chunk: the label plus the start of the code, about 600 tokens. Enough for a signature,
+# docstring and the first part of the body; the full chunk is still stored and keyword-searchable. Embedding cost
+# grows with the square of length, so uncapped chunks make indexing a large repo slow and memory-hungry.
+MAX_EMBED_CHARS = 2000
+# Embeddings are cached in slices this big, so a large first index shows progress and survives an interruption.
+CACHE_WRITE_EVERY = 512
 
 _STOPWORDS = {
     "the", "and", "for", "with", "that", "this", "from", "are", "was", "were", "not", "but", "has", "have", "had",
@@ -21,6 +28,43 @@ _IDENTIFIER = re.compile(r"`([^`]+)`|\b([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Z
 
 class ScoredChunk(StoredChunk):
     score: float
+
+
+class IndexReport(BaseModel):
+    chunks: int = 0
+    # Chunks the skipped files would have produced, by reason (too_large, long_lines, generated, data).
+    skipped_chunks: dict[str, int] = {}
+    skipped_files: int = 0
+
+    def merge(self, other: "IndexReport") -> "IndexReport":
+        skipped = dict(self.skipped_chunks)
+        for reason, n in other.skipped_chunks.items():
+            skipped[reason] = skipped.get(reason, 0) + n
+        return IndexReport(chunks=self.chunks + other.chunks, skipped_chunks=skipped,
+                           skipped_files=self.skipped_files + other.skipped_files)
+
+
+def chunk_paths(repo: Path, paths: list[str]) -> tuple[list[Chunk], IndexReport]:
+    """Chunk files for indexing, leaving out noise and counting what it would have added."""
+    chunks: list[Chunk] = []
+    report = IndexReport()
+    for path in paths:
+        file = Path(repo) / path
+        # Only files we would chunk are classified; .gitignore or a minified .js is not noise, just not indexed.
+        if language_for(path) is None or not file.is_file():
+            continue
+        try:
+            text = file.read_text()
+        except UnicodeDecodeError:
+            continue
+        reason = skip_reason(path, text)
+        if reason:
+            report.skipped_chunks[reason] = report.skipped_chunks.get(reason, 0) + len(chunk_file(path, text, keep_noise=True))
+            report.skipped_files += 1
+            continue
+        chunks.extend(chunk_file(path, text))
+    report.chunks = len(chunks)
+    return chunks, report
 
 
 class RetrievalQuery(BaseModel):
@@ -65,33 +109,41 @@ def select_files(chunks: list[ScoredChunk], max_files: int) -> list[str]:
 
 
 class Retriever:
-    def __init__(self, store: ChunkStore, embedder: Embedder):
+    def __init__(self, store: ChunkStore, embedder: Embedder, progress=None):
         self.store = store
         self.embedder = embedder
+        self.progress = progress  # optional callable(done, total) while embedding uncached chunks
 
-    def index_paths(self, index_id: str, repo: Path, paths: list[str]) -> int:
+    def index_paths(self, index_id: str, repo: Path, paths: list[str]) -> IndexReport:
         """(Re)index the given files. Files that no longer exist are just removed from the index."""
         self.store.delete_paths(index_id, paths)
-        chunks = []
-        for path in paths:
-            file = Path(repo) / path
-            if file.is_file() and file.stat().st_size <= MAX_FILE_BYTES:
-                try:
-                    chunks.extend(chunk_file(path, file.read_text()))
-                except UnicodeDecodeError:
-                    continue
+        chunks, report = chunk_paths(repo, paths)
         if chunks:
-            # The label puts path and symbol into the embedded text, which helps when names carry the meaning.
-            embeddings = self.embedder.embed_documents([f"{c.label()}\n{c.content}" for c in chunks])
-            self.store.add(index_id, chunks, embeddings)
-        return len(chunks)
+            # Path and symbol go into the embedded text, which helps when names carry the meaning. Line numbers do
+            # not: they would make every chunk below an edit look new to the cache.
+            texts = [f"{c.embedding_label()}\n{c.content}"[:MAX_EMBED_CHARS] for c in chunks]
+            self.store.add(index_id, chunks, self._embed_with_cache(texts))
+        return report
+
+    def _embed_with_cache(self, texts: list[str]) -> list[list[float]]:
+        hashes = [hashlib.sha256(t.encode()).hexdigest() for t in texts]
+        cached = self.store.cached_embeddings(self.embedder.model_name, hashes)
+        missing = list({h: t for h, t in zip(hashes, texts, strict=True) if h not in cached}.items())
+        for start in range(0, len(missing), CACHE_WRITE_EVERY):
+            batch = missing[start:start + CACHE_WRITE_EVERY]
+            fresh = dict(zip([h for h, _ in batch], self.embedder.embed_documents([t for _, t in batch]), strict=True))
+            self.store.cache_embeddings(self.embedder.model_name, fresh)
+            cached.update(fresh)
+            if self.progress:
+                self.progress(min(start + CACHE_WRITE_EVERY, len(missing)), len(missing))
+        return [cached[h] for h in hashes]
 
     def search(self, index_id: str, text: str, top_k: int = 20, filters: SearchFilters | None = None) -> list[ScoredChunk]:
         query = rewrite_query(text)
         pool = top_k * 3
         return fuse(
             [
-                self.store.vector_search(index_id, self.embedder.embed_query(text), pool, filters),
+                self.store.vector_search(index_id, self.embedder.embed_query(text[: MAX_EMBED_CHARS * 2]), pool, filters),
                 self.store.keyword_search(index_id, query.keywords, pool, filters),
                 self.store.symbol_search(index_id, query.identifiers, pool, filters),
             ],

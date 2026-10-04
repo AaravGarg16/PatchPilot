@@ -3,7 +3,11 @@ import subprocess
 from pathlib import Path
 
 # Pinned so a user's global git config (signing, hooks identity) can't break the baseline commit.
-_GIT_CONFIG = ["-c", "user.name=PatchPilot", "-c", "user.email=patchpilot@localhost", "-c", "commit.gpgsign=false"]
+_GIT_CONFIG = [
+    "-c", "user.name=PatchPilot", "-c", "user.email=patchpilot@localhost", "-c", "commit.gpgsign=false",
+    # A workspace copied out of an image brings its own .git; never let its config run commands on the host.
+    "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null",
+]
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -49,7 +53,7 @@ MAX_SEARCH_MATCHES = 100
 def search_code(repo: Path, pattern: str) -> str:
     """Regex search over tracked and new files, with line numbers."""
     result = subprocess.run(
-        ["git", "grep", "-n", "-I", "-E", "--untracked", "-e", pattern],
+        ["git", *_GIT_CONFIG, "grep", "-n", "-I", "-E", "--untracked", "-e", pattern],
         cwd=repo, capture_output=True, text=True, check=False,
     )
     if result.returncode == 1:
@@ -60,3 +64,14 @@ def search_code(repo: Path, pattern: str) -> str:
     if len(lines) > MAX_SEARCH_MATCHES:
         return "\n".join(lines[:MAX_SEARCH_MATCHES]) + f"\n[{len(lines) - MAX_SEARCH_MATCHES} more matches not shown]"
     return "\n".join(lines)
+
+
+def grep_files(repo: Path, pattern: str) -> list[str]:
+    """Tracked files with a line matching the extended regex."""
+    result = subprocess.run(
+        ["git", *_GIT_CONFIG, "grep", "-l", "-I", "-E", "-e", pattern],
+        cwd=repo, capture_output=True, text=True, check=False,
+    )
+    if result.returncode not in (0, 1):
+        raise ValueError(f"grep failed: {result.stderr.strip()}")
+    return result.stdout.splitlines()

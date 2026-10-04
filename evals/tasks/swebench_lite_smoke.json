@@ -1,0 +1,22 @@
+{
+  "dataset": "SWE-bench/SWE-bench_Lite",
+  "purpose": "Cheap harness validation, not a benchmark result. Biased toward small fixes, so expect higher success than on full Lite.",
+  "selection": "Per repo, the instances whose gold patch changes the fewest lines, spread over 9 repos and all three test runners (pytest, django runtests.py, sympy bin/test). astropy, matplotlib and scikit-learn are left out: large images with compiled extensions.",
+  "instance_ids": [
+    "django__django-11179",
+    "django__django-13230",
+    "django__django-13447",
+    "django__django-15814",
+    "sympy__sympy-13480",
+    "sympy__sympy-13647",
+    "sympy__sympy-14774",
+    "pytest-dev__pytest-11143",
+    "pytest-dev__pytest-6116",
+    "psf__requests-2317",
+    "pallets__flask-4992",
+    "pydata__xarray-4094",
+    "pylint-dev__pylint-7080",
+    "mwaskom__seaborn-3190",
+    "sphinx-doc__sphinx-8595"
+  ]
+}
