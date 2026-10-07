@@ -18,10 +18,31 @@ def tests_ok(state: PatchPilotState) -> bool:
     return state.test_results.passed if state.test_results.ran else True
 
 
+def is_accepted(state: PatchPilotState, evaluation: Evaluation, diff: str) -> bool:
+    """Combine real test results with the evaluator's judgment.
+
+    Passing selected tests are evidence the model alone cannot overrule: a rejection then needs a concrete problem
+    and a verdict that the patch is wrong or incomplete. A vague or inconsistent rejection ("correct, but retry",
+    or "incorrect" with nothing named) does not cost another attempt. Failing tests and empty diffs are never accepted.
+    """
+    if not diff.strip():
+        return False
+    tests = state.test_results
+    if tests.ran and not tests.passed:
+        return False
+    if tests.ran:
+        names_a_gap = bool(evaluation.problems) and not (evaluation.correct and evaluation.requirements_met)
+        return not names_a_gap
+    # Nothing ran, so the evaluator's reading of the diff is the only signal.
+    return evaluation.correct and evaluation.recommended_action == "finish"
+
+
 def _failure_record(state: PatchPilotState, problems: list[str]) -> FailureRecord:
     return FailureRecord(
         attempt=state.attempt_number,
         tests_passed=state.test_results.passed,
+        tests_ran=state.test_results.ran,
+        tests_selected=state.test_results.selected,
         test_output=state.test_results.output,
         lint_passed=state.lint_results.passed,
         lint_output=state.lint_results.output,
@@ -55,8 +76,7 @@ def evaluate(state: PatchPilotState, llm) -> dict:
     run_config = {"run_name": f"evaluator attempt {state.attempt_number}", "metadata": {"attempt": state.attempt_number}}
     evaluation: Evaluation = llm.with_structured_output(Evaluation, method="json_schema").invoke(messages, config=run_config)
 
-    # Real test results overrule the model: a patch with failing tests is never accepted.
-    accepted = tests_ok(state) and evaluation.correct and evaluation.recommended_action == "finish"
+    accepted = is_accepted(state, evaluation, diff)
     update = {"evaluation": evaluation, "diff": diff, "success": accepted}
     if not accepted:
         update["failure_history"] = [*state.failure_history, _failure_record(state, evaluation.problems)]

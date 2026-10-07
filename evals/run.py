@@ -54,6 +54,11 @@ def _result_from_report(task: Task, config: str, report) -> TaskResult:
         gold_files=task.gold_files,
         model_patch=state.diff or "",
         trace_id=report.trace_id,
+        final_evaluation=state.evaluation.model_dump() if state.evaluation else None,
+        rejections=[
+            r.model_dump(include={"attempt", "tests_ran", "tests_passed", "tests_selected", "problems"})
+            for r in state.failure_history
+        ],
     )
     if task.source == "custom":
         # Custom tasks are graded by their own full test suite, which the agent's final check already ran.

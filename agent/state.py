@@ -45,6 +45,8 @@ class RepoMetadata(BaseModel):
 class FailureRecord(BaseModel):
     attempt: int
     tests_passed: bool
+    tests_ran: bool = True
+    tests_selected: list[str] = []
     test_output: str
     lint_passed: bool
     lint_output: str
