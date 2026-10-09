@@ -1,0 +1,105 @@
+2026-10-09 19:36:38,664 - INFO - Creating container for sympy__sympy-17630...
+2026-10-09 19:36:38,777 - INFO - Container for sympy__sympy-17630 created: b8c9d96625d08de662a0c6425fd873c6128bbc515117e860b7db8bab42cd2bfb
+2026-10-09 19:36:39,013 - INFO - Container for sympy__sympy-17630 started: b8c9d96625d08de662a0c6425fd873c6128bbc515117e860b7db8bab42cd2bfb
+2026-10-09 19:36:39,014 - INFO - Intermediate patch for sympy__sympy-17630 written to logs/run_evaluation/bench-full/patchpilot-full/sympy__sympy-17630/patch.diff, now applying to container...
+2026-10-09 19:36:39,180 - INFO - >>>>> Applied Patch:
+Checking patch sympy/matrices/dense.py...
+warning: sympy/matrices/dense.py has type 100755, expected 100644
+Checking patch sympy/matrices/expressions/tests/test_blockmatrix_zero_regression.py...
+Applied patch sympy/matrices/dense.py cleanly.
+Applied patch sympy/matrices/expressions/tests/test_blockmatrix_zero_regression.py cleanly.
+
+2026-10-09 19:36:39,848 - INFO - Git diff before:
+diff --git a/sympy/matrices/dense.py b/sympy/matrices/dense.py
+index 1844475199..bf82f40fd9 100755
+--- a/sympy/matrices/dense.py
++++ b/sympy/matrices/dense.py
+@@ -193,17 +193,26 @@ def _eval_matrix_mul(self, other):
+                 row, col = i // new_mat_cols, i % new_mat_cols
+                 row_indices = range(self_cols*row, self_cols*(row+1))
+                 col_indices = range(col, other_len, other_cols)
+-                vec = (mat[a]*other_mat[b] for a,b in zip(row_indices, col_indices))
+-                try:
+-                    new_mat[i] = Add(*vec)
+-                except (TypeError, SympifyError):
++                vec = [mat[a]*other_mat[b] for a,b in zip(row_indices, col_indices)]
++                if any(getattr(term, 'is_MatrixExpr', False) for term in vec):
+                     # Block matrices don't work with `sum` or `Add` (ISSUE #11599)
+-                    # They don't work with `sum` because `sum` tries to add `0`
+-                    # initially, and for a matrix, that is a mix of a scalar and
+-                    # a matrix, which raises a TypeError. Fall back to a
+-                    # block-matrix-safe way to multiply if the `sum` fails.
+-                    vec = (mat[a]*other_mat[b] for a,b in zip(row_indices, col_indices))
+-                    new_mat[i] = reduce(lambda a,b: a + b, vec)
++                    # and, more insidiously, core `Add` can silently collapse an
++                    # all-zero sum of matrix-shaped terms (e.g. ZeroMatrix
++                    # instances) into the scalar `0` instead of a properly
++                    # shaped zero matrix. Avoid both problems for matrix-valued
++                    # terms by adding them pairwise with the `+` operator,
++                    # which dispatches to the matrix-aware addition.
++                    new_mat[i] = reduce(lambda a, b: a + b, vec)
++                else:
++                    try:
++                        new_mat[i] = Add(*vec)
++                    except (TypeError, SympifyError):
++                        # Block matrices don't work with `sum` or `Add` (ISSUE #11599)
++                        # They don't work with `sum` because `sum` tries to add `0`
++                        # initially, and for a matrix, that is a mix of a scalar and
++                        # a matrix, which raises a TypeError. Fall back to a
++                        # block-matrix-safe way to multiply if the `sum` fails.
++                        new_mat[i] = reduce(lambda a,b: a + b, vec)
+         return classof(self, other)._new(new_mat_rows, new_mat_cols, new_mat, copy=False)
+ 
+     def _eval_matrix_mul_elementwise(self, other):
+2026-10-09 19:36:39,848 - INFO - Eval script for sympy__sympy-17630 written to logs/run_evaluation/bench-full/patchpilot-full/sympy__sympy-17630/eval.sh; copying to container...
+2026-10-09 19:36:49,750 - INFO - Test runtime: 9.83 seconds
+2026-10-09 19:36:49,752 - INFO - Test output for sympy__sympy-17630 written to logs/run_evaluation/bench-full/patchpilot-full/sympy__sympy-17630/test_output.txt
+2026-10-09 19:36:49,842 - INFO - Git diff after:
+diff --git a/sympy/matrices/dense.py b/sympy/matrices/dense.py
+index 1844475199..bf82f40fd9 100755
+--- a/sympy/matrices/dense.py
++++ b/sympy/matrices/dense.py
+@@ -193,17 +193,26 @@ def _eval_matrix_mul(self, other):
+                 row, col = i // new_mat_cols, i % new_mat_cols
+                 row_indices = range(self_cols*row, self_cols*(row+1))
+                 col_indices = range(col, other_len, other_cols)
+-                vec = (mat[a]*other_mat[b] for a,b in zip(row_indices, col_indices))
+-                try:
+-                    new_mat[i] = Add(*vec)
+-                except (TypeError, SympifyError):
++                vec = [mat[a]*other_mat[b] for a,b in zip(row_indices, col_indices)]
++                if any(getattr(term, 'is_MatrixExpr', False) for term in vec):
+                     # Block matrices don't work with `sum` or `Add` (ISSUE #11599)
+-                    # They don't work with `sum` because `sum` tries to add `0`
+-                    # initially, and for a matrix, that is a mix of a scalar and
+-                    # a matrix, which raises a TypeError. Fall back to a
+-                    # block-matrix-safe way to multiply if the `sum` fails.
+-                    vec = (mat[a]*other_mat[b] for a,b in zip(row_indices, col_indices))
+-                    new_mat[i] = reduce(lambda a,b: a + b, vec)
++                    # and, more insidiously, core `Add` can silently collapse an
++                    # all-zero sum of matrix-shaped terms (e.g. ZeroMatrix
++                    # instances) into the scalar `0` instead of a properly
++                    # shaped zero matrix. Avoid both problems for matrix-valued
++                    # terms by adding them pairwise with the `+` operator,
++                    # which dispatches to the matrix-aware addition.
++                    new_mat[i] = reduce(lambda a, b: a + b, vec)
++                else:
++                    try:
++                        new_mat[i] = Add(*vec)
++                    except (TypeError, SympifyError):
++                        # Block matrices don't work with `sum` or `Add` (ISSUE #11599)
++                        # They don't work with `sum` because `sum` tries to add `0`
++                        # initially, and for a matrix, that is a mix of a scalar and
++                        # a matrix, which raises a TypeError. Fall back to a
++                        # block-matrix-safe way to multiply if the `sum` fails.
++                        new_mat[i] = reduce(lambda a,b: a + b, vec)
+         return classof(self, other)._new(new_mat_rows, new_mat_cols, new_mat, copy=False)
+ 
+     def _eval_matrix_mul_elementwise(self, other):
+2026-10-09 19:36:49,842 - INFO - Grading answer for sympy__sympy-17630...
+2026-10-09 19:36:49,845 - INFO - report: {'sympy__sympy-17630': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': False, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': ['test_issue_17624'], 'failure': ['test_zero_matrix_add']}, 'PASS_TO_PASS': {'success': ['test_bc_matmul', 'test_bc_matadd', 'test_bc_transpose', 'test_bc_dist_diag', 'test_block_plus_ident', 'test_BlockMatrix', 'test_block_collapse_explicit_matrices', 'test_BlockMatrix_trace', 'test_BlockMatrix_Determinant', 'test_squareBlockMatrix', 'test_BlockDiagMatrix', 'test_blockcut', 'test_reblock_2x2', 'test_deblock', 'test_sort_key', 'test_matadd_sympify', 'test_matadd_of_matrices', 'test_doit_args', 'test_generic_identity'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for sympy__sympy-17630: resolved: False
+2026-10-09 19:36:49,847 - INFO - Attempting to stop container sweb.eval.sympy__sympy-17630.bench-full...
+2026-10-09 19:37:05,248 - INFO - Container sweb.eval.sympy__sympy-17630.bench-full stopped successfully.
+2026-10-09 19:37:05,249 - INFO - Attempting to remove container sweb.eval.sympy__sympy-17630.bench-full...
+2026-10-09 19:37:05,339 - INFO - Container sweb.eval.sympy__sympy-17630.bench-full removed successfully.

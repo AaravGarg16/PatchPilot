@@ -1,0 +1,112 @@
+{
+  "instance_id": "django__django-11049",
+  "source": "swebench",
+  "config": "full",
+  "status": "done",
+  "error": null,
+  "self_accepted": false,
+  "attempts": 3,
+  "retries": 2,
+  "tool_calls": 43,
+  "tool_errors": 5,
+  "llm_calls": 49,
+  "input_tokens": 1765695,
+  "output_tokens": 27250,
+  "cache_read_tokens": 1258222,
+  "cache_write_tokens": 109742,
+  "max_prompt_tokens": 49044,
+  "mean_prompt_tokens": 36034.6,
+  "cost_usd": 1.5939614,
+  "latency_seconds": 493.5,
+  "tests_before_passed": null,
+  "tests_after_passed": false,
+  "retrieved_files": [
+    "django/db/models/fields/__init__.py",
+    "django/db/models/query.py",
+    "docs/intro/tutorial05.txt",
+    "docs/intro/contributing.txt",
+    "django/forms/fields.py"
+  ],
+  "planned_files": [
+    "django/db/models/fields/__init__.py",
+    "django/forms/fields.py",
+    "tests/model_fields/test_durationfield.py",
+    "tests/forms_tests/field_tests/test_durationfield.py",
+    "docs/ref/models/fields.txt"
+  ],
+  "gold_files": [
+    "django/db/models/fields/__init__.py"
+  ],
+  "model_patch": "diff --git a/django/db/models/fields/__init__.py b/django/db/models/fields/__init__.py\nindex f32ce64629..f1b3efbc98 100644\n--- a/django/db/models/fields/__init__.py\n+++ b/django/db/models/fields/__init__.py\n@@ -1587,7 +1587,7 @@ class DurationField(Field):\n     empty_strings_allowed = False\n     default_error_messages = {\n         'invalid': _(\"'%(value)s' value has an invalid format. It must be in \"\n-                     \"[DD] [HH:[MM:]]ss[.uuuuuu] format.\")\n+                     \"[DD] [[HH:]MM:]ss[.uuuuuu] format.\")\n     }\n     description = _(\"Duration\")\n \n@@ -1631,6 +1631,10 @@ class DurationField(Field):\n         return '' if val is None else duration_string(val)\n \n     def formfield(self, **kwargs):\n+        kwargs.setdefault(\n+            'help_text',\n+            self.help_text or _('Enter a valid duration of the form: [DD] [[HH:]MM:]ss[.uuuuuu]'),\n+        )\n         return super().formfield(**{\n             'form_class': forms.DurationField,\n             **kwargs,\n",
+  "trace_id": "f03293fa8921061908ac7f3389742929",
+  "final_evaluation": {
+    "correct": false,
+    "requirements_met": true,
+    "tests_pass": false,
+    "problems": [
+      "tests/model_fields/test_durationfield.py::TestValidation::test_invalid_string still asserts the old incorrect message '[DD] [HH:[MM:]]ss[.uuuuuu]'. Since this exact test file is listed in tests_needed as requiring an update to match the corrected format string, it must be edited to expect '[DD] [[HH:]MM:]ss[.uuuuuu]'. The executor must find a way to apply this edit (e.g., via a diff/patch to the test file) rather than reporting it as impossible, since modifying this test is part of the required fix."
+    ],
+    "recommended_action": "retry"
+  },
+  "rejections": [
+    {
+      "attempt": 1,
+      "tests_passed": false,
+      "tests_ran": true,
+      "tests_selected": [
+        "tests/model_fields/test_durationfield.py",
+        "tests/forms_tests/field_tests/test_durationfield.py",
+        "tests/model_fields/test_field_flags.py",
+        "tests/forms_tests/field_tests/test_base.py",
+        "tests/forms_tests/field_tests/test_urlfield.py",
+        "tests/forms_tests/field_tests/test_charfield.py"
+      ],
+      "problems": [
+        "tests/model_fields/test_durationfield.py::TestValidation::test_invalid_string still asserts the old, incorrect error message format string. Since this test is in the explicit test list for this issue and is failing due to the (correct) message fix, it must be updated to assert the new format string \"[DD] [[HH:]MM:]ss[.uuuuuu]\" to match the corrected behavior.",
+        "No default help_text was added to DurationField as requested in the issue ('Also the duration fields could have a default help_text with the requested format')."
+      ]
+    },
+    {
+      "attempt": 2,
+      "tests_passed": false,
+      "tests_ran": true,
+      "tests_selected": [
+        "tests/model_fields/test_durationfield.py",
+        "tests/forms_tests/field_tests/test_durationfield.py",
+        "tests/model_fields/test_field_flags.py",
+        "tests/forms_tests/field_tests/test_base.py",
+        "tests/forms_tests/field_tests/test_urlfield.py",
+        "tests/forms_tests/field_tests/test_charfield.py"
+      ],
+      "problems": [
+        "tests/model_fields/test_durationfield.py::TestValidation::test_invalid_string still asserts the old incorrect message '[DD] [HH:[MM:]]ss[.uuuuuu]'. This test must be updated to expect the corrected format '[DD] [[HH:]MM:]ss[.uuuuuu]' since the message change is the core of this fix. The executor claims this file cannot be edited, but this is the exact test file listed as needing update in tests_needed, so it must find a way to modify it (e.g. via patch/diff application rather than whatever restricted tool failed) — a correct fix for this issue requires both the production code change and the corresponding test update."
+      ]
+    },
+    {
+      "attempt": 3,
+      "tests_passed": false,
+      "tests_ran": true,
+      "tests_selected": [
+        "tests/model_fields/test_durationfield.py",
+        "tests/forms_tests/field_tests/test_durationfield.py",
+        "tests/model_fields/test_field_flags.py",
+        "tests/forms_tests/field_tests/test_base.py",
+        "tests/forms_tests/field_tests/test_urlfield.py",
+        "tests/forms_tests/field_tests/test_charfield.py"
+      ],
+      "problems": [
+        "tests/model_fields/test_durationfield.py::TestValidation::test_invalid_string still asserts the old incorrect message '[DD] [HH:[MM:]]ss[.uuuuuu]'. Since this exact test file is listed in tests_needed as requiring an update to match the corrected format string, it must be edited to expect '[DD] [[HH:]MM:]ss[.uuuuuu]'. The executor must find a way to apply this edit (e.g., via a diff/patch to the test file) rather than reporting it as impossible, since modifying this test is part of the required fix."
+      ]
+    }
+  ],
+  "grade": {
+    "grader": "swebench",
+    "resolved": true,
+    "patch_applied": true,
+    "fail_to_pass_passed": 1,
+    "fail_to_pass_total": 1,
+    "pass_to_pass_passed": 8,
+    "pass_to_pass_total": 8,
+    "error": null
+  }
+}

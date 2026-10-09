@@ -1,0 +1,52 @@
+{
+  "instance_id": "sympy__sympy-17630",
+  "source": "swebench",
+  "config": "planner",
+  "status": "done",
+  "error": null,
+  "self_accepted": true,
+  "attempts": 1,
+  "retries": 0,
+  "tool_calls": 25,
+  "tool_errors": 4,
+  "llm_calls": 26,
+  "input_tokens": 1105903,
+  "output_tokens": 17664,
+  "cache_read_tokens": 879495,
+  "cache_write_tokens": 46772,
+  "max_prompt_tokens": 52529,
+  "mean_prompt_tokens": 42534.7,
+  "cost_usd": 0.828741,
+  "latency_seconds": 529.19,
+  "tests_before_passed": null,
+  "tests_after_passed": true,
+  "retrieved_files": [
+    "sympy/matrices/expressions/blockmatrix.py",
+    "sympy/assumptions/handlers/matrices.py",
+    "sympy/matrices/dense.py",
+    "sympy/matrices/expressions/tests/test_blockmatrix.py",
+    "sympy/external/importtools.py"
+  ],
+  "planned_files": [
+    "sympy/matrices/expressions/blockmatrix.py",
+    "sympy/matrices/expressions/tests/test_blockmatrix.py",
+    "sympy/matrices/dense.py"
+  ],
+  "gold_files": [
+    "sympy/matrices/expressions/matexpr.py"
+  ],
+  "model_patch": "diff --git a/sympy/matrices/expressions/blockmatrix.py b/sympy/matrices/expressions/blockmatrix.py\nindex 95302a05ca..bd55787d99 100644\n--- a/sympy/matrices/expressions/blockmatrix.py\n+++ b/sympy/matrices/expressions/blockmatrix.py\n@@ -164,10 +164,33 @@ def structurally_equal(self, other):\n     def _blockmul(self, other):\n         if (isinstance(other, BlockMatrix) and\n                 self.colblocksizes == other.rowblocksizes):\n-            return BlockMatrix(self.blocks*other.blocks)\n+            return BlockMatrix(self._blockmul_sanitize(\n+                self.blocks*other.blocks, other))\n \n         return self * other\n \n+    def _blockmul_sanitize(self, mat, other):\n+        \"\"\"Replace any scalar zero entries in a block-multiplication result\n+        with properly shaped ZeroMatrix instances.\n+\n+        When all the summands of a block-matrix product entry are\n+        ZeroMatrix objects, the underlying dense matrix multiplication may\n+        combine them with the generic sympy ``Add``, which collapses to the\n+        scalar ``S.Zero`` rather than a ``ZeroMatrix``.  Restoring the\n+        ZeroMatrix type here keeps later block operations (which rely on\n+        attributes like ``.rows``/``.cols``) working correctly.\n+        \"\"\"\n+        rowsizes = self.rowblocksizes\n+        colsizes = other.colblocksizes\n+\n+        def fix(i, j):\n+            entry = mat[i, j]\n+            if not isinstance(entry, MatrixExpr) and entry == 0:\n+                return ZeroMatrix(rowsizes[i], colsizes[j])\n+            return entry\n+\n+        return Matrix(mat.rows, mat.cols, fix)\n+\n     def _blockadd(self, other):\n         if (isinstance(other, BlockMatrix)\n                 and self.structurally_equal(other)):\ndiff --git a/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul.py b/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul.py\nnew file mode 100644\nindex 0000000000..473bfb59e4\n--- /dev/null\n+++ b/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul.py\n@@ -0,0 +1,23 @@\n+from sympy import MatrixSymbol, ZeroMatrix\n+from sympy.matrices.expressions.blockmatrix import BlockMatrix, block_collapse\n+\n+\n+def test_block_multiply_zero_type():\n+    a = MatrixSymbol(\"a\", 2, 2)\n+    z = ZeroMatrix(2, 2)\n+    b = BlockMatrix([[a, z], [z, z]])\n+\n+    bb = b._blockmul(b)\n+    assert isinstance(bb.blocks[0, 1], ZeroMatrix)\n+    assert isinstance(bb.blocks[1, 0], ZeroMatrix)\n+    assert isinstance(bb.blocks[1, 1], ZeroMatrix)\n+\n+    # Should not raise\n+    bbb = bb._blockmul(b)\n+    assert bbb is not None\n+\n+    result = block_collapse(b * b * b)\n+    assert result[0, 0] == a**3\n+    assert result[0, 1] == 0\n+    assert result[1, 0] == 0\n+    assert result[1, 1] == 0\ndiff --git a/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul2.py b/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul2.py\nnew file mode 100644\nindex 0000000000..c49d1aeb28\n--- /dev/null\n+++ b/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul2.py\n@@ -0,0 +1,15 @@\n+from sympy import MatrixSymbol, ZeroMatrix\n+from sympy.matrices.expressions.blockmatrix import BlockMatrix, block_collapse\n+\n+\n+def test_block_multiply_zero_type2():\n+    a = MatrixSymbol(\"a\", 2, 2)\n+    z = ZeroMatrix(2, 2)\n+    b = BlockMatrix([[a, z], [z, z]])\n+\n+    result = block_collapse(b * b * b)\n+    print(\"RESULT00\", repr(result[0, 0]))\n+    print(\"RESULT01\", repr(result[0, 1]))\n+    print(\"RESULT10\", repr(result[1, 0]))\n+    print(\"RESULT11\", repr(result[1, 1]))\n+    assert False\ndiff --git a/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul3.py b/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul3.py\nnew file mode 100644\nindex 0000000000..b83de47e8b\n--- /dev/null\n+++ b/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul3.py\n@@ -0,0 +1,14 @@\n+from sympy import MatrixSymbol, ZeroMatrix, expand\n+from sympy.matrices.expressions.blockmatrix import BlockMatrix, block_collapse\n+\n+\n+def test_block_multiply_zero_type3():\n+    a = MatrixSymbol(\"a\", 2, 2)\n+    z = ZeroMatrix(2, 2)\n+    b = BlockMatrix([[a, z], [z, z]])\n+\n+    result = block_collapse(b * b * b)\n+    print(\"expand01\", expand(result[0, 1]))\n+    print(\"expand10\", expand(result[1, 0]))\n+    print(\"expand11\", expand(result[1, 1]))\n+    assert False\ndiff --git a/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul4.py b/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul4.py\nnew file mode 100644\nindex 0000000000..5ac6adef4a\n--- /dev/null\n+++ b/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul4.py\n@@ -0,0 +1,16 @@\n+from sympy import MatrixSymbol, ZeroMatrix, expand\n+from sympy.matrices.expressions.blockmatrix import BlockMatrix, block_collapse\n+\n+\n+def test_block_multiply_zero_type4():\n+    a = MatrixSymbol(\"a\", 2, 2)\n+    z = ZeroMatrix(2, 2)\n+    b = BlockMatrix([[a, z], [z, z]])\n+\n+    result = block_collapse(b * b * b)\n+    print(\"00\", expand(result[0, 0]))\n+    print(\"01\", expand(result[0, 1]))\n+    print(\"02\", expand(result[0, 2]))\n+    print(\"20\", expand(result[2, 0]))\n+    print(\"22\", expand(result[2, 2]))\n+    assert False\n",
+  "trace_id": "054f158da27d907ae2e4d306a00a5196",
+  "final_evaluation": null,
+  "rejections": [],
+  "grade": {
+    "grader": "swebench",
+    "resolved": false,
+    "patch_applied": true,
+    "fail_to_pass_passed": 1,
+    "fail_to_pass_total": 2,
+    "pass_to_pass_passed": 19,
+    "pass_to_pass_total": 19,
+    "error": null
+  }
+}

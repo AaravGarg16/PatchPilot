@@ -1,0 +1,48 @@
+{
+  "instance_id": "sympy__sympy-20322",
+  "source": "swebench",
+  "config": "planner",
+  "status": "agent_error",
+  "error": "OutputParserException: Failed to parse Plan from completion {\"problem\": \"sympy.sympify('4*ceiling(x/4 - 3/4)', evaluate=False).simplify() returns the mathematically wrong result 4*ceiling(x/4) - 3, while the evaluate=True path correctly returns 4*ceiling(x/4 - 3/4). The simplify() pipeline (via expand()/doit() round-tripping through RoundFunction.eval) ends up pulling the non-integer term -3/4 out of the ceiling argument as if it were an integer offset, which is only valid for integer additive terms, then the outer Mul(4, ...) distributes across the (incorrectly) split expression.\", \"relevant_files\": [\"sympy/functions/elementary/integers.py\", \"sympy/functions/elementary/tests/test_integers.py\", \"sympy/simplify/simplify.py\", \"sympy/core/sympify.py\", \"sympy/core/tests/test_sympify.py\"], \"implementation_steps\": [\"Reproduce the issue: sympify('4*ceiling(x/4 - 3/4)', evaluate=False).simplify() vs evaluate=True, and trace where the two diverge (deep simplify's expr.replace() reconstructs ceiling(...) via func(*args) with evaluate=True, then later _mexpand()/expand() recurses into the ceiling argument and re-distributes the Mul, re-triggering RoundFunction.eval on the Add argument).\", \"Inspect RoundFunction.eval (and floor/ceiling eval) in sympy/functions/elementary/integers.py: locate the loop over Add.make_args(arg) that separates terms into an integral part and a non-integral part; verify it only extracts terms that are provably integer (t.is_integer is True), not merely rational/numeric\"]}. Got: 2 validation errors for Plan\ntests_needed\n  Field required [type=missing, input_value={'problem': \"sympy.sympif...rely rational/numeric']}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nrisks\n  Field required [type=missing, input_value={'problem': \"sympy.sympif...rely rational/numeric']}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nFor troubleshooting, visit: https://docs.langchain.com/oss/python/langchain/errors/OUTPUT_PARSING_FAILURE ",
+  "self_accepted": false,
+  "attempts": 0,
+  "retries": 0,
+  "tool_calls": 0,
+  "tool_errors": 0,
+  "llm_calls": 1,
+  "input_tokens": 41032,
+  "output_tokens": 16000,
+  "cache_read_tokens": 0,
+  "cache_write_tokens": 0,
+  "max_prompt_tokens": 41032,
+  "mean_prompt_tokens": 41032.0,
+  "cost_usd": 0.242064,
+  "latency_seconds": 428.2,
+  "tests_before_passed": null,
+  "tests_after_passed": null,
+  "retrieved_files": [
+    "sympy/core/sympify.py",
+    "sympy/functions/elementary/tests/test_integers.py",
+    "sympy/core/numbers.py",
+    "sympy/core/tests/test_sympify.py",
+    "sympy/functions/elementary/integers.py"
+  ],
+  "planned_files": [],
+  "gold_files": [
+    "sympy/core/mul.py"
+  ],
+  "model_patch": "",
+  "trace_id": "d4879a2a4e01d7f4bc3d9a7a87cf56ef",
+  "final_evaluation": null,
+  "rejections": [],
+  "grade": {
+    "grader": "swebench",
+    "resolved": false,
+    "patch_applied": false,
+    "fail_to_pass_passed": 0,
+    "fail_to_pass_total": 0,
+    "pass_to_pass_passed": 0,
+    "pass_to_pass_total": 0,
+    "error": "empty patch"
+  }
+}

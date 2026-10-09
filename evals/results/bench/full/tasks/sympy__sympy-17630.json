@@ -1,0 +1,58 @@
+{
+  "instance_id": "sympy__sympy-17630",
+  "source": "swebench",
+  "config": "full",
+  "status": "done",
+  "error": null,
+  "self_accepted": true,
+  "attempts": 1,
+  "retries": 0,
+  "tool_calls": 22,
+  "tool_errors": 0,
+  "llm_calls": 25,
+  "input_tokens": 1228567,
+  "output_tokens": 31526,
+  "cache_read_tokens": 796037,
+  "cache_write_tokens": 47221,
+  "max_prompt_tokens": 58979,
+  "mean_prompt_tokens": 49142.7,
+  "cost_usd": 1.3631379,
+  "latency_seconds": 819.53,
+  "tests_before_passed": null,
+  "tests_after_passed": true,
+  "retrieved_files": [
+    "sympy/matrices/expressions/blockmatrix.py",
+    "sympy/assumptions/handlers/matrices.py",
+    "sympy/matrices/dense.py",
+    "sympy/matrices/expressions/tests/test_blockmatrix.py",
+    "sympy/external/importtools.py"
+  ],
+  "planned_files": [
+    "sympy/matrices/expressions/blockmatrix.py",
+    "sympy/matrices/dense.py",
+    "sympy/matrices/expressions/tests/test_blockmatrix.py"
+  ],
+  "gold_files": [
+    "sympy/matrices/expressions/matexpr.py"
+  ],
+  "model_patch": "diff --git a/sympy/matrices/dense.py b/sympy/matrices/dense.py\nindex 1844475199..bf82f40fd9 100644\n--- a/sympy/matrices/dense.py\n+++ b/sympy/matrices/dense.py\n@@ -193,17 +193,26 @@ def _eval_matrix_mul(self, other):\n                 row, col = i // new_mat_cols, i % new_mat_cols\n                 row_indices = range(self_cols*row, self_cols*(row+1))\n                 col_indices = range(col, other_len, other_cols)\n-                vec = (mat[a]*other_mat[b] for a,b in zip(row_indices, col_indices))\n-                try:\n-                    new_mat[i] = Add(*vec)\n-                except (TypeError, SympifyError):\n+                vec = [mat[a]*other_mat[b] for a,b in zip(row_indices, col_indices)]\n+                if any(getattr(term, 'is_MatrixExpr', False) for term in vec):\n                     # Block matrices don't work with `sum` or `Add` (ISSUE #11599)\n-                    # They don't work with `sum` because `sum` tries to add `0`\n-                    # initially, and for a matrix, that is a mix of a scalar and\n-                    # a matrix, which raises a TypeError. Fall back to a\n-                    # block-matrix-safe way to multiply if the `sum` fails.\n-                    vec = (mat[a]*other_mat[b] for a,b in zip(row_indices, col_indices))\n-                    new_mat[i] = reduce(lambda a,b: a + b, vec)\n+                    # and, more insidiously, core `Add` can silently collapse an\n+                    # all-zero sum of matrix-shaped terms (e.g. ZeroMatrix\n+                    # instances) into the scalar `0` instead of a properly\n+                    # shaped zero matrix. Avoid both problems for matrix-valued\n+                    # terms by adding them pairwise with the `+` operator,\n+                    # which dispatches to the matrix-aware addition.\n+                    new_mat[i] = reduce(lambda a, b: a + b, vec)\n+                else:\n+                    try:\n+                        new_mat[i] = Add(*vec)\n+                    except (TypeError, SympifyError):\n+                        # Block matrices don't work with `sum` or `Add` (ISSUE #11599)\n+                        # They don't work with `sum` because `sum` tries to add `0`\n+                        # initially, and for a matrix, that is a mix of a scalar and\n+                        # a matrix, which raises a TypeError. Fall back to a\n+                        # block-matrix-safe way to multiply if the `sum` fails.\n+                        new_mat[i] = reduce(lambda a,b: a + b, vec)\n         return classof(self, other)._new(new_mat_rows, new_mat_cols, new_mat, copy=False)\n \n     def _eval_matrix_mul_elementwise(self, other):\ndiff --git a/sympy/matrices/expressions/tests/test_blockmatrix_zero_regression.py b/sympy/matrices/expressions/tests/test_blockmatrix_zero_regression.py\nnew file mode 100644\nindex 0000000000..e01b14ea5c\n--- /dev/null\n+++ b/sympy/matrices/expressions/tests/test_blockmatrix_zero_regression.py\n@@ -0,0 +1,24 @@\n+from sympy import MatrixSymbol, ZeroMatrix\n+from sympy.matrices.expressions.blockmatrix import BlockMatrix, block_collapse\n+from sympy.matrices.expressions.matexpr import ZeroMatrix as ZeroMatrixType\n+\n+\n+def test_block_collapse_zero_matrix_repeated_blockmul():\n+    # Regression test for issue where block-multiplying a BlockMatrix\n+    # with ZeroMatrix blocks more than once raised an AttributeError\n+    # because the intermediate zero blocks became bare scalar `Zero`\n+    # instead of `ZeroMatrix`.\n+    a = MatrixSymbol(\"a\", 2, 2)\n+    z = ZeroMatrix(2, 2)\n+    b = BlockMatrix([[a, z], [z, z]])\n+\n+    once = b._blockmul(b)\n+    assert isinstance(once.blocks[0, 1], ZeroMatrixType)\n+    assert isinstance(once.blocks[1, 0], ZeroMatrixType)\n+    assert isinstance(once.blocks[1, 1], ZeroMatrixType)\n+\n+    twice = once._blockmul(b)\n+    assert isinstance(twice.blocks[0, 1], ZeroMatrixType)\n+\n+    result = block_collapse(b * b * b)\n+    assert result.shape == (4, 4)\n",
+  "trace_id": "99709d058a15820db735578caebe835a",
+  "final_evaluation": {
+    "correct": true,
+    "requirements_met": true,
+    "tests_pass": true,
+    "problems": [],
+    "recommended_action": "finish"
+  },
+  "rejections": [],
+  "grade": {
+    "grader": "swebench",
+    "resolved": false,
+    "patch_applied": true,
+    "fail_to_pass_passed": 1,
+    "fail_to_pass_total": 2,
+    "pass_to_pass_passed": 19,
+    "pass_to_pass_total": 19,
+    "error": null
+  }
+}

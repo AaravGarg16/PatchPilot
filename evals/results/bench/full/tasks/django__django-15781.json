@@ -1,0 +1,54 @@
+{
+  "instance_id": "django__django-15781",
+  "source": "swebench",
+  "config": "full",
+  "status": "agent_error",
+  "error": "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfsCD6y6e61PANkrtFQrp'}",
+  "self_accepted": false,
+  "attempts": 1,
+  "retries": 0,
+  "tool_calls": 26,
+  "tool_errors": 4,
+  "llm_calls": 26,
+  "input_tokens": 1054386,
+  "output_tokens": 29386,
+  "cache_read_tokens": 798485,
+  "cache_write_tokens": 43674,
+  "max_prompt_tokens": 56921,
+  "mean_prompt_tokens": 40553.3,
+  "cost_usd": 0.987196,
+  "latency_seconds": 485.76,
+  "tests_before_passed": null,
+  "tests_after_passed": true,
+  "retrieved_files": [
+    "docs/howto/custom-management-commands.txt",
+    "django/contrib/auth/management/commands/createsuperuser.py",
+    "docs/ref/django-admin.txt",
+    "django/core/management/__init__.py",
+    "django/core/management/base.py"
+  ],
+  "planned_files": [
+    "django/core/management/base.py",
+    "docs/howto/custom-management-commands.txt",
+    "docs/ref/django-admin.txt",
+    "tests/user_commands/tests.py",
+    "tests/user_commands/management/commands/dance.py"
+  ],
+  "gold_files": [
+    "django/core/management/base.py"
+  ],
+  "model_patch": "",
+  "trace_id": "acc6c3c661bede896f705871b743c20d",
+  "final_evaluation": null,
+  "rejections": [],
+  "grade": {
+    "grader": "swebench",
+    "resolved": false,
+    "patch_applied": false,
+    "fail_to_pass_passed": 0,
+    "fail_to_pass_total": 0,
+    "pass_to_pass_passed": 0,
+    "pass_to_pass_total": 0,
+    "error": "empty patch"
+  }
+}
