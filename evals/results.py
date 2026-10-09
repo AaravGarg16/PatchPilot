@@ -48,6 +48,8 @@ class TaskResult(BaseModel):
     model_patch: str = ""
     trace_id: str | None = None
     # For diagnosing the evaluator: its last verdict, and why each rejected attempt was rejected.
+    # Retries and fallbacks after malformed model output; a run with a fallback did not run the normal pipeline.
+    degradations: list[str] = []
     final_evaluation: dict | None = None
     rejections: list[dict] = []
     grade: Grade | None = None

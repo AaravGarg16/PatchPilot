@@ -132,6 +132,10 @@ class BatchChatAnthropic(ChatAnthropic):
             )
         return self._scheduler
 
+    def _should_stream(self, **kwargs) -> bool:
+        # A caller asking for streaming (large max_tokens) still goes through a batch, which has no such limit.
+        return False
+
     def _batch_params(self, messages, stop, **kwargs) -> dict:
         payload = self._get_request_payload(messages, stop=stop, **kwargs)
         if "betas" in payload:

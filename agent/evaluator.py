@@ -4,6 +4,7 @@ from agent.context import ContextBudget, fit, render_failures
 from agent.prompts import evaluator as prompts
 from agent.schemas import Evaluation
 from agent.state import FailureRecord, PatchPilotState
+from agent.structured import StructuredOutputError, call_structured
 from tools import git
 
 
@@ -35,6 +36,13 @@ def is_accepted(state: PatchPilotState, evaluation: Evaluation, diff: str) -> bo
         return not names_a_gap
     # Nothing ran, so the evaluator's reading of the diff is the only signal.
     return evaluation.correct and evaluation.recommended_action == "finish"
+
+
+def fallback_evaluation(state: PatchPilotState) -> Evaluation:
+    """No parseable verdict: let the real test results decide. Passing tests accept, anything else does not."""
+    passed = state.test_results.ran and state.test_results.passed
+    return Evaluation(correct=passed, requirements_met=passed, tests_pass=passed, problems=[],
+                      recommended_action="finish" if passed else "retry")
 
 
 def _failure_record(state: PatchPilotState, problems: list[str]) -> FailureRecord:
@@ -73,11 +81,20 @@ def build_evaluator_message(state: PatchPilotState, diff: str) -> str:
 def evaluate(state: PatchPilotState, llm) -> dict:
     diff = git.diff(Path(state.repo_metadata.path))
     messages = [("system", prompts.SYSTEM), ("human", build_evaluator_message(state, diff))]
-    run_config = {"run_name": f"evaluator attempt {state.attempt_number}", "metadata": {"attempt": state.attempt_number}}
-    evaluation: Evaluation = llm.with_structured_output(Evaluation, method="json_schema").invoke(messages, config=run_config)
+    notes = state.degradations
+    try:
+        evaluation, retried = call_structured(
+            llm, Evaluation, messages, run_name=f"evaluator attempt {state.attempt_number}",
+            metadata={"attempt": state.attempt_number},
+        )
+        if retried:
+            notes = [*notes, f"retry: evaluator attempt {state.attempt_number}, after an unparseable reply"]
+    except StructuredOutputError as e:
+        evaluation = fallback_evaluation(state)
+        notes = [*notes, f"fallback: evaluator attempt {state.attempt_number} gave no verdict, deferred to the tests ({e})"]
 
     accepted = is_accepted(state, evaluation, diff)
-    update = {"evaluation": evaluation, "diff": diff, "success": accepted}
+    update = {"evaluation": evaluation, "diff": diff, "success": accepted, "degradations": notes}
     if not accepted:
         update["failure_history"] = [*state.failure_history, _failure_record(state, evaluation.problems)]
     return update

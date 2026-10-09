@@ -46,10 +46,14 @@ def _docker(*args: str, timeout: float = 60) -> subprocess.CompletedProcess:
 def image_exists(image: str, attempts: int = 3) -> bool:
     """Whether the image is present locally.
 
-    Retried: Docker Desktop's containerd image store intermittently answers "No such image" for a tagged image that
-    is there, which would otherwise turn into a false environment error or an unneeded multi-GB pull.
+    Docker Desktop's containerd image store can answer "No such image" to `image inspect <tag>` for an image that is
+    there (and that `docker run` happily starts), sometimes for minutes. Listing by reference does not have the
+    problem, so either answer counts; a false "missing" would become a bogus environment error or a multi-GB pull.
     """
     for attempt in range(attempts):
+        listed = _docker("image", "ls", "--quiet", "--filter", f"reference={image}")
+        if listed.returncode == 0 and listed.stdout.strip():
+            return True
         if _docker("image", "inspect", "--format", "{{.Id}}", image).returncode == 0:
             return True
         if attempt < attempts - 1:

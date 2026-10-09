@@ -74,12 +74,14 @@ class FakeLLM:
 
     Structured output: queued responses per schema (the last one repeats).
     Tool calling: one flat queue of AIMessages; an attempt ends at the first message without tool calls.
+    An exception in either queue is raised instead of returned, to simulate an unparseable reply.
     """
 
     def __init__(self, structured: dict, executor_turns: list[AIMessage] | None = None, caching: bool = False):
         self.structured = {schema: list(queue) for schema, queue in structured.items()}
         self.executor_turns = list(executor_turns or [])
         self.structured_calls: list[tuple[type, list]] = []
+        self.structured_kwargs: list[dict] = []
         self.executor_calls: list[list] = []
         self.executor_kwargs: list[dict] = []
         self.bound_tool_names: list[str] = []
@@ -105,10 +107,14 @@ class _Structured:
     def __init__(self, llm: FakeLLM, schema):
         self.llm, self.schema = llm, schema
 
-    def invoke(self, messages, config=None):
+    def invoke(self, messages, config=None, **kwargs):
         self.llm.structured_calls.append((self.schema, messages))
+        self.llm.structured_kwargs.append(kwargs)
         queue = self.llm.structured[self.schema]
         result = queue.pop(0) if len(queue) > 1 else queue[0]
+        if isinstance(result, Exception):
+            _emit(_reply(content="{cut off"), messages, config)  # the call still happened and still cost tokens
+            raise result
         _emit(_reply(content=result.model_dump_json()), messages, config)
         return result
 
@@ -123,7 +129,10 @@ class _ToolCaller:
         self.llm.executor_kwargs.append(kwargs)
         if not self.llm.executor_turns:
             raise AssertionError("executor asked for more turns than the test scripted")
-        return await _aemit(self.llm.executor_turns.pop(0), messages, config)
+        turn = self.llm.executor_turns.pop(0)
+        if isinstance(turn, Exception):
+            raise turn
+        return await _aemit(turn, messages, config)
 
 
 class HashEmbedder:

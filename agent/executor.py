@@ -13,6 +13,7 @@ from agent.context import (
 from agent.llm import CACHE_CONTROL, supports_prompt_caching
 from agent.prompts import executor as prompts
 from agent.state import PatchPilotState
+from agent.structured import PARSE_ERRORS
 from tools import git
 from tools.mcp_client import repo_tools
 
@@ -53,6 +54,33 @@ def build_executor_message(state: PatchPilotState, current_diff: str) -> str:
     return "\n\n".join(parts)
 
 
+REPLY_REMINDER = (
+    "Your last reply could not be parsed: a tool call was cut off or was not valid JSON. Send it again. "
+    "Keep each edit small; split a large change into several edit_file calls."
+)
+
+
+async def next_reply(model, messages: list, config: dict, prepare) -> tuple[AIMessage | None, bool]:
+    """One model turn: (reply, retried). A reply that cannot be parsed is asked for once more, with a reminder left
+    in the conversation; (None, True) means it failed twice and the attempt should end.
+
+    `prepare(messages)` returns the messages to send and the call kwargs (cache markers, when supported).
+    """
+    for retried in (False, True):
+        if retried:
+            messages.append(HumanMessage(REPLY_REMINDER))
+        call_messages, kwargs = prepare(messages)
+        try:
+            reply: AIMessage = await model.ainvoke(call_messages, config=config, **kwargs)
+        except PARSE_ERRORS:
+            continue
+        # A tool call whose arguments were not valid JSON arrives here rather than raising.
+        if reply.invalid_tool_calls and not reply.tool_calls:
+            continue
+        return reply, retried
+    return None, True
+
+
 def cache_breakpoints(messages: list, cache_tail: bool) -> tuple[list, dict]:
     """The messages to send, with prompt-cache markers, and the call kwargs that go with them.
 
@@ -82,6 +110,7 @@ async def implement(state: PatchPilotState, llm) -> dict:
     tool_budget = _budget(state).tokens("tool_outputs")
     calls = errors = elided = 0
     summary = "executor stopped without a summary"
+    notes = list(state.degradations)
     attempt = state.attempt_number + 1
     run_config = {"run_name": f"executor attempt {attempt}", "metadata": {"attempt": attempt}}
 
@@ -96,14 +125,23 @@ async def implement(state: PatchPilotState, llm) -> dict:
         else:
             messages = [SystemMessage(prompts.SYSTEM), HumanMessage(build_executor_message(state, current_diff))]
 
+        def prepare(msgs: list) -> tuple[list, dict]:
+            if not caching:
+                return msgs, {}
+            # Full history only ever appends; dynamic mode stops caching the tail once it starts trimming.
+            return cache_breakpoints(msgs, cache_tail=full_history or elided == 0)
+
         for _ in range(MAX_STEPS):
             if not full_history:
                 elided += compress_tool_outputs(messages, tool_budget)
-            call_messages, cache_kwargs = messages, {}
-            if caching:
-                # Full history only ever appends; dynamic mode stops caching the tail once it starts trimming.
-                call_messages, cache_kwargs = cache_breakpoints(messages, cache_tail=full_history or elided == 0)
-            reply: AIMessage = await model.ainvoke(call_messages, config=run_config, **cache_kwargs)
+            reply, retried = await next_reply(model, messages, run_config, prepare)
+            if retried:
+                notes.append(f"retry: executor attempt {attempt}, after an unparseable reply" if reply is not None
+                             else f"fallback: executor attempt {attempt} ended early after two unparseable replies")
+            if reply is None:
+                # Whatever was edited so far still gets checked and judged; a retry attempt can follow.
+                summary = "the executor's reply could not be parsed twice, so this attempt ended early"
+                break
             messages.append(reply)
             if not reply.tool_calls:
                 summary = reply.text or summary
@@ -128,5 +166,6 @@ async def implement(state: PatchPilotState, llm) -> dict:
         "tool_calls": state.tool_calls + calls,
         "tool_errors": state.tool_errors + errors,
         "elided_tool_outputs": state.elided_tool_outputs + elided,
+        "degradations": notes,
         "executor_history": messages if full_history else [],
     }

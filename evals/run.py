@@ -16,6 +16,7 @@ import time
 import uuid
 from pathlib import Path
 
+from agent.errors import describe_error, is_fatal
 from agent.run import run_issue
 from evals import results as store
 from evals.configs import CONFIGS, EXPERIMENTS
@@ -62,6 +63,7 @@ def _result_from_report(task: Task, config: str, report) -> TaskResult:
         gold_files=task.gold_files,
         model_patch=state.diff or "",
         trace_id=report.trace_id,
+        degradations=report.degradations,
         final_evaluation=state.evaluation.model_dump() if state.evaluation else None,
         rejections=[
             r.model_dump(include={"attempt", "tests_ran", "tests_passed", "tests_selected", "problems"})
@@ -144,6 +146,13 @@ async def run_suite(
                 result = await run_task(task, config, llm=llm, model_name=model_name, retriever=retriever,
                                         work_dir=work_dir, max_attempts=max_attempts, platform=platform,
                                         sandbox_memory=sandbox_memory)
+            except (Exception, BaseExceptionGroup) as e:
+                # Last line of defence: one task's unexpected failure is that task's result, never the batch's.
+                if is_fatal(e):
+                    raise
+                result = TaskResult(instance_id=task.instance_id, source=task.source, config=config,
+                                    status="agent_error", gold_files=task.gold_files,
+                                    error=f"unexpected crash outside the agent run: {describe_error(e)}")
             finally:
                 if not keep_workspaces:
                     await asyncio.to_thread(shutil.rmtree, work_dir, True)

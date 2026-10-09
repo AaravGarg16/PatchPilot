@@ -1,15 +1,19 @@
+import logging
 import time
 import uuid
 
 from pydantic import BaseModel
 
 from agent import target
+from agent.errors import describe_error, is_fatal
 from agent.graph import _describe, build_graph
 from agent.state import AgentConfig, PatchPilotState
 from observability.langfuse import trace_run
 from observability.usage import UsageTracker
 from retrieval.retriever import Retriever
 from sandbox.runner import SandboxConfig, destroy_run
+
+logger = logging.getLogger("patchpilot.run")
 
 
 class RunReport(BaseModel):
@@ -36,6 +40,8 @@ class RunReport(BaseModel):
     trace_id: str | None
     # Set when the run crashed and raise_errors was False; the metrics then cover what ran before the crash.
     error: str | None = None
+    # Recoveries from malformed model output (retries, fallback plan or verdict); empty for a clean run.
+    degradations: list[str] = []
     state: PatchPilotState
 
 
@@ -74,15 +80,19 @@ async def run_issue(
                     final.update(values or {})
                     if on_update:
                         on_update(node, final)
-        except Exception as e:
-            if raise_errors:
+        except (Exception, BaseExceptionGroup) as e:
+            # Exception groups too: a failure inside the executor's tool session arrives wrapped in one.
+            if raise_errors or is_fatal(e):
                 raise
-            error = f"{type(e).__name__}: {e}"
+            error = describe_error(e)
         finally:
-            # finalize does this on the happy path; this covers exceptions and interrupted runs.
-            destroy_run(run_id)
-            if agent_config.rag:
-                retriever.drop(run_id)
+            # finalize does this on the happy path; this covers exceptions and interrupted runs. Best effort: a
+            # cleanup problem must not replace the run's result or its real error.
+            for cleanup in (lambda: destroy_run(run_id), lambda: retriever.drop(run_id) if agent_config.rag else None):
+                try:
+                    cleanup()
+                except Exception as e:  # noqa: BLE001
+                    logger.warning("cleanup after run %s failed: %s", run_id, describe_error(e))
 
         state = initial.model_copy(update=final)
         report = RunReport(
@@ -106,6 +116,7 @@ async def run_issue(
             latency_seconds=round(time.monotonic() - started, 2),
             trace_id=trace.trace_id,
             error=error,
+            degradations=state.degradations,
             state=state,
         )
         trace.finish(

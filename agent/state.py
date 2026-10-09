@@ -91,6 +91,10 @@ class PatchPilotState(BaseModel):
     attempt_number: int = 0
     max_attempts: int = 3
 
+    # Recoveries from malformed model output, each prefixed "retry:" (a second ask worked) or "fallback:" (a step's
+    # result was replaced).
+    degradations: list[str] = Field(default_factory=list)
+
     tool_calls: int = 0
     tool_errors: int = 0
     elided_tool_outputs: int = 0

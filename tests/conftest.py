@@ -27,6 +27,13 @@ def langfuse_off(monkeypatch):
     monkeypatch.setenv("LANGFUSE_TRACING_ENABLED", "false")
 
 
+@pytest.fixture(autouse=True)
+def anthropic_unreachable(monkeypatch):
+    """No test may reach Anthropic's API. If one tries, the call fails against a dead local port instead."""
+    for variable in ("ANTHROPIC_API_URL", "ANTHROPIC_BASE_URL"):
+        monkeypatch.setenv(variable, "http://127.0.0.1:9")
+
+
 @pytest.fixture(scope="session")
 def test_db_url() -> str:
     try:

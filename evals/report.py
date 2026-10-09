@@ -85,6 +85,7 @@ METRICS = [
     ("Mean prompt (context utilization)", lambda s: _tokens(s.mean_prompt_tokens)),
     ("Max prompt", lambda s: _tokens(s.max_prompt_tokens)),
     ("Agent errors / environment errors", lambda s: f"{s.agent_errors} / {s.env_errors}"),
+    ("Runs that used a fallback step", lambda s: str(s.fallback_runs)),
 ]
 
 

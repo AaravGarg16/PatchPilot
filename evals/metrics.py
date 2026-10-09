@@ -14,6 +14,7 @@ class Summary(BaseModel):
     tasks: int  # attempted, excluding environment failures
     env_errors: int
     agent_errors: int
+    fallback_runs: int  # runs where a step's output was replaced by a fallback (plan, verdict, or an ended attempt)
     graded: int  # tasks with a verdict
     success_rate: float | None  # resolved / graded
     tests_passed: float | None  # share of the grader's target tests (FAIL_TO_PASS) that pass
@@ -72,6 +73,7 @@ def summarize(config: str, results: list[TaskResult]) -> Summary:
         tasks=len(attempted),
         env_errors=len(results) - len(attempted),
         agent_errors=sum(r.status == "agent_error" for r in attempted),
+        fallback_runs=sum(any(note.startswith("fallback:") for note in r.degradations) for r in attempted),
         graded=len(graded),
         success_rate=len(resolved) / len(graded) if graded else None,
         tests_passed=_mean(f2p),
