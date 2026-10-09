@@ -1,0 +1,16 @@
+diff --git a/django/forms/fields.py b/django/forms/fields.py
+index a977256525..8494f31f79 100644
+--- a/django/forms/fields.py
++++ b/django/forms/fields.py
+@@ -472,6 +472,11 @@ class DurationField(Field):
+         'overflow': _('The number of days must be between {min_days} and {max_days}.')
+     }
+ 
++    def __init__(self, *, help_text='', **kwargs):
++        if not help_text:
++            help_text = _('Enter a valid duration, e.g. "3 days, 2:15" or "2:15:30.5".')
++        super().__init__(help_text=help_text, **kwargs)
++
+     def prepare_value(self, value):
+         if isinstance(value, datetime.timedelta):
+             return duration_string(value)

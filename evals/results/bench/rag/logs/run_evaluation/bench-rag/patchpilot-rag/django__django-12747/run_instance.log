@@ -1,0 +1,55 @@
+2026-10-09 08:50:17,754 - INFO - Creating container for django__django-12747...
+2026-10-09 08:50:17,862 - INFO - Container for django__django-12747 created: 0ca2ce3e1a98a59f24be95bc707a21c1c3d0dbe308827f1723fd9c547bc54ee2
+2026-10-09 08:50:18,107 - INFO - Container for django__django-12747 started: 0ca2ce3e1a98a59f24be95bc707a21c1c3d0dbe308827f1723fd9c547bc54ee2
+2026-10-09 08:50:18,107 - INFO - Intermediate patch for django__django-12747 written to logs/run_evaluation/bench-rag/patchpilot-rag/django__django-12747/patch.diff, now applying to container...
+2026-10-09 08:50:18,308 - INFO - >>>>> Applied Patch:
+Checking patch django/db/models/query.py...
+warning: django/db/models/query.py has type 100755, expected 100644
+Applied patch django/db/models/query.py cleanly.
+
+2026-10-09 08:50:19,668 - INFO - Git diff before:
+diff --git a/django/db/models/query.py b/django/db/models/query.py
+index d9c9b0db04..30d1bbebb0 100755
+--- a/django/db/models/query.py
++++ b/django/db/models/query.py
+@@ -735,6 +735,12 @@ class QuerySet:
+         collector.collect(del_query)
+         deleted, _rows_count = collector.delete()
+ 
++        # Ensure the queryset's own model is always included in the
++        # per-model counts, even if nothing was deleted, for a consistent
++        # return value regardless of whether fast deletion was used.
++        if deleted == 0:
++            _rows_count.setdefault(self.model._meta.label, 0)
++
+         # Clear the result cache, in case this QuerySet gets reused.
+         self._result_cache = None
+         return deleted, _rows_count
+2026-10-09 08:50:19,669 - INFO - Eval script for django__django-12747 written to logs/run_evaluation/bench-rag/patchpilot-rag/django__django-12747/eval.sh; copying to container...
+2026-10-09 08:50:37,197 - INFO - Test runtime: 17.42 seconds
+2026-10-09 08:50:37,201 - INFO - Test output for django__django-12747 written to logs/run_evaluation/bench-rag/patchpilot-rag/django__django-12747/test_output.txt
+2026-10-09 08:50:37,304 - INFO - Git diff after:
+diff --git a/django/db/models/query.py b/django/db/models/query.py
+index d9c9b0db04..30d1bbebb0 100755
+--- a/django/db/models/query.py
++++ b/django/db/models/query.py
+@@ -735,6 +735,12 @@ class QuerySet:
+         collector.collect(del_query)
+         deleted, _rows_count = collector.delete()
+ 
++        # Ensure the queryset's own model is always included in the
++        # per-model counts, even if nothing was deleted, for a consistent
++        # return value regardless of whether fast deletion was used.
++        if deleted == 0:
++            _rows_count.setdefault(self.model._meta.label, 0)
++
+         # Clear the result cache, in case this QuerySet gets reused.
+         self._result_cache = None
+         return deleted, _rows_count
+2026-10-09 08:50:37,305 - INFO - Grading answer for django__django-12747...
+2026-10-09 08:50:37,317 - INFO - report: {'django__django-12747': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': False, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': [], 'failure': ['test_fast_delete_empty_no_update_can_self_select (delete.tests.FastDeleteTests)', 'test_model_delete_returns_num_rows (delete.tests.DeletionTests)', 'test_queryset_delete_returns_num_rows (delete.tests.DeletionTests)']}, 'PASS_TO_PASS': {'success': ['test_fast_delete_combined_relationships (delete.tests.FastDeleteTests)', 'test_fast_delete_fk (delete.tests.FastDeleteTests)', 'test_fast_delete_inheritance (delete.tests.FastDeleteTests)', 'test_fast_delete_instance_set_pk_none (delete.tests.FastDeleteTests)', 'test_fast_delete_joined_qs (delete.tests.FastDeleteTests)', 'test_fast_delete_large_batch (delete.tests.FastDeleteTests)', 'test_fast_delete_m2m (delete.tests.FastDeleteTests)', 'test_fast_delete_qs (delete.tests.FastDeleteTests)', 'test_fast_delete_revm2m (delete.tests.FastDeleteTests)', 'test_auto (delete.tests.OnDeleteTests)', 'test_auto_nullable (delete.tests.OnDeleteTests)', 'test_cascade (delete.tests.OnDeleteTests)', 'test_cascade_from_child (delete.tests.OnDeleteTests)', 'test_cascade_from_parent (delete.tests.OnDeleteTests)', 'test_cascade_nullable (delete.tests.OnDeleteTests)', 'test_do_nothing (delete.tests.OnDeleteTests)', 'test_do_nothing_qscount (delete.tests.OnDeleteTests)', 'test_inheritance_cascade_down (delete.tests.OnDeleteTests)', 'test_inheritance_cascade_up (delete.tests.OnDeleteTests)', 'test_non_callable (delete.tests.OnDeleteTests)', 'test_o2o_setnull (delete.tests.OnDeleteTests)', 'test_protect (delete.tests.OnDeleteTests)', 'test_protect_multiple (delete.tests.OnDeleteTests)', 'test_protect_path (delete.tests.OnDeleteTests)', 'test_restrict (delete.tests.OnDeleteTests)', 'test_restrict_gfk_no_fast_delete (delete.tests.OnDeleteTests)', 'test_restrict_multiple (delete.tests.OnDeleteTests)', 'test_restrict_path_cascade_direct (delete.tests.OnDeleteTests)', 'test_restrict_path_cascade_indirect (delete.tests.OnDeleteTests)', 'test_restrict_path_cascade_indirect_diamond (delete.tests.OnDeleteTests)', 'test_setdefault (delete.tests.OnDeleteTests)', 'test_setdefault_none (delete.tests.OnDeleteTests)', 'test_setnull (delete.tests.OnDeleteTests)', 'test_setnull_from_child (delete.tests.OnDeleteTests)', 'test_setnull_from_parent (delete.tests.OnDeleteTests)', 'test_setvalue (delete.tests.OnDeleteTests)', 'test_bulk (delete.tests.DeletionTests)', 'test_can_defer_constraint_checks (delete.tests.DeletionTests)', 'test_delete_with_keeping_parents (delete.tests.DeletionTests)', 'test_delete_with_keeping_parents_relationships (delete.tests.DeletionTests)', 'test_deletion_order (delete.tests.DeletionTests)', 'test_hidden_related (delete.tests.DeletionTests)', 'test_instance_update (delete.tests.DeletionTests)', 'test_large_delete (delete.tests.DeletionTests)', 'test_large_delete_related (delete.tests.DeletionTests)', 'test_m2m (delete.tests.DeletionTests)', 'test_only_referenced_fields_selected (delete.tests.DeletionTests)', 'test_proxied_model_duplicate_queries (delete.tests.DeletionTests)', 'test_relational_post_delete_signals_happen_before_parent_object (delete.tests.DeletionTests)'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for django__django-12747: resolved: False
+2026-10-09 08:50:37,317 - INFO - Attempting to stop container sweb.eval.django__django-12747.bench-rag...
+2026-10-09 08:50:52,609 - INFO - Container sweb.eval.django__django-12747.bench-rag stopped successfully.
+2026-10-09 08:50:52,610 - INFO - Attempting to remove container sweb.eval.django__django-12747.bench-rag...
+2026-10-09 08:50:52,681 - INFO - Container sweb.eval.django__django-12747.bench-rag removed successfully.

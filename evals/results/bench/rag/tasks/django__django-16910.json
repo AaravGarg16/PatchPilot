@@ -1,0 +1,48 @@
+{
+  "instance_id": "django__django-16910",
+  "source": "swebench",
+  "config": "rag",
+  "status": "done",
+  "error": null,
+  "self_accepted": true,
+  "attempts": 1,
+  "retries": 0,
+  "tool_calls": 25,
+  "tool_errors": 0,
+  "llm_calls": 25,
+  "input_tokens": 865105,
+  "output_tokens": 14201,
+  "cache_read_tokens": 618667,
+  "cache_write_tokens": 32228,
+  "max_prompt_tokens": 42812,
+  "mean_prompt_tokens": 34604.2,
+  "cost_usd": 0.7747334,
+  "latency_seconds": 3055.11,
+  "tests_before_passed": null,
+  "tests_after_passed": true,
+  "retrieved_files": [
+    "docs/ref/models/querysets.txt",
+    "django/db/models/query.py",
+    "django/db/models/sql/compiler.py",
+    "django/db/models/base.py",
+    "tests/gis_tests/relatedapp/tests.py"
+  ],
+  "planned_files": [],
+  "gold_files": [
+    "django/db/models/sql/query.py"
+  ],
+  "model_patch": "diff --git a/django/db/models/sql/query.py b/django/db/models/sql/query.py\nindex 781dfd5499..04bdb6f335 100644\n--- a/django/db/models/sql/query.py\n+++ b/django/db/models/sql/query.py\n@@ -779,11 +779,17 @@ class Query(BaseExpression):\n         # Only include fields mentioned in the mask.\n         for field_name, field_mask in mask.items():\n             field = opts.get_field(field_name)\n-            field_select_mask = select_mask.setdefault(field, {})\n+            # Retrieve the actual field associated with reverse relationships\n+            # as that's the field that is referred to in the select_mask.\n+            if hasattr(field, \"field\"):\n+                field_key = field.field\n+            else:\n+                field_key = field\n+            field_select_mask = select_mask.setdefault(field_key, {})\n             if field_mask:\n                 if not field.is_relation:\n                     raise FieldError(next(iter(field_mask)))\n-                related_model = field.remote_field.model._meta.concrete_model\n+                related_model = field.related_model._meta.concrete_model\n                 self._get_only_select_mask(\n                     related_model._meta, field_mask, field_select_mask\n                 )\n",
+  "trace_id": "a751cb38deda9269f06019df8a72c1d2",
+  "final_evaluation": null,
+  "rejections": [],
+  "grade": {
+    "grader": "swebench",
+    "resolved": true,
+    "patch_applied": true,
+    "fail_to_pass_passed": 2,
+    "fail_to_pass_total": 2,
+    "pass_to_pass_passed": 36,
+    "pass_to_pass_total": 36,
+    "error": null
+  }
+}

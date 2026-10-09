@@ -1,0 +1,48 @@
+{
+  "instance_id": "sympy__sympy-17630",
+  "source": "swebench",
+  "config": "rag",
+  "status": "done",
+  "error": null,
+  "self_accepted": true,
+  "attempts": 1,
+  "retries": 0,
+  "tool_calls": 26,
+  "tool_errors": 1,
+  "llm_calls": 25,
+  "input_tokens": 1272730,
+  "output_tokens": 20935,
+  "cache_read_tokens": 803276,
+  "cache_write_tokens": 44873,
+  "max_prompt_tokens": 58804,
+  "mean_prompt_tokens": 50909.2,
+  "cost_usd": 1.3313496999999999,
+  "latency_seconds": 7712.88,
+  "tests_before_passed": null,
+  "tests_after_passed": null,
+  "retrieved_files": [
+    "sympy/matrices/expressions/blockmatrix.py",
+    "sympy/matrices/dense.py",
+    "sympy/assumptions/handlers/matrices.py",
+    "sympy/matrices/expressions/tests/test_blockmatrix.py",
+    "sympy/external/importtools.py"
+  ],
+  "planned_files": [],
+  "gold_files": [
+    "sympy/matrices/expressions/matexpr.py"
+  ],
+  "model_patch": "diff --git a/debug_script.py b/debug_script.py\nnew file mode 100644\nindex 0000000000..3384fc3a34\n--- /dev/null\n+++ b/debug_script.py\n@@ -0,0 +1,10 @@\n+from sympy import MatrixSymbol, ZeroMatrix\n+from sympy.matrices.expressions.blockmatrix import BlockMatrix\n+\n+a = MatrixSymbol(\"a\", 2, 2)\n+z = ZeroMatrix(2, 2)\n+b = BlockMatrix([[a, z], [z, z]])\n+prod = b.blocks * b.blocks\n+print(\"TYPES:\", [type(x) for x in prod])\n+print(\"prod:\", prod)\n+assert False, str([type(x) for x in prod])\ndiff --git a/sympy/matrices/expressions/tests/test_zzdebug2.py b/sympy/matrices/expressions/tests/test_zzdebug2.py\nnew file mode 100644\nindex 0000000000..9493e1f5fc\n--- /dev/null\n+++ b/sympy/matrices/expressions/tests/test_zzdebug2.py\n@@ -0,0 +1,11 @@\n+from sympy import MatrixSymbol, ZeroMatrix\n+from sympy.matrices.expressions.blockmatrix import BlockMatrix\n+\n+\n+def test_debug():\n+    a = MatrixSymbol(\"a\", 2, 2)\n+    z = ZeroMatrix(2, 2)\n+    b = BlockMatrix([[a, z], [z, z]])\n+    prod = b.blocks * b.blocks\n+    types = [type(x) for x in prod]\n+    assert False, (types, prod)\ndiff --git a/sympy/matrices/expressions/tests/test_zzdebug3.py b/sympy/matrices/expressions/tests/test_zzdebug3.py\nnew file mode 100644\nindex 0000000000..434e7de6bc\n--- /dev/null\n+++ b/sympy/matrices/expressions/tests/test_zzdebug3.py\n@@ -0,0 +1,8 @@\n+from sympy import ZeroMatrix, Add\n+from sympy.core import Add as CAdd\n+\n+\n+def test_debug():\n+    z = ZeroMatrix(2, 2)\n+    r = Add(z, z)\n+    assert False, (type(r), r)\ndiff --git a/sympy/matrices/expressions/tests/test_zzz_debug.py b/sympy/matrices/expressions/tests/test_zzz_debug.py\nnew file mode 100644\nindex 0000000000..b6beedecd8\n--- /dev/null\n+++ b/sympy/matrices/expressions/tests/test_zzz_debug.py\n@@ -0,0 +1,12 @@\n+from sympy import MatrixSymbol, ZeroMatrix\n+from sympy.matrices.expressions.blockmatrix import BlockMatrix\n+\n+\n+def test_debug():\n+    a = MatrixSymbol(\"a\", 2, 2)\n+    z = ZeroMatrix(2, 2)\n+    b = BlockMatrix([[a, z], [z, z]])\n+    r1 = b._blockmul(b)\n+    print(\"TYPES:\", [type(x) for x in r1.blocks])\n+    print(\"r1 blocks:\", r1.blocks)\n+    raise AssertionError(\"debug stop: %r\" % ([type(x) for x in r1.blocks],))\ndiff --git a/sympy/matrices/expressions/tests/zzdebug_test.py b/sympy/matrices/expressions/tests/zzdebug_test.py\nnew file mode 100644\nindex 0000000000..9493e1f5fc\n--- /dev/null\n+++ b/sympy/matrices/expressions/tests/zzdebug_test.py\n@@ -0,0 +1,11 @@\n+from sympy import MatrixSymbol, ZeroMatrix\n+from sympy.matrices.expressions.blockmatrix import BlockMatrix\n+\n+\n+def test_debug():\n+    a = MatrixSymbol(\"a\", 2, 2)\n+    z = ZeroMatrix(2, 2)\n+    b = BlockMatrix([[a, z], [z, z]])\n+    prod = b.blocks * b.blocks\n+    types = [type(x) for x in prod]\n+    assert False, (types, prod)\n",
+  "trace_id": "8b7acd7eb0f5b5e29dafaef41bd2c959",
+  "final_evaluation": null,
+  "rejections": [],
+  "grade": {
+    "grader": "swebench",
+    "resolved": false,
+    "patch_applied": true,
+    "fail_to_pass_passed": 0,
+    "fail_to_pass_total": 2,
+    "pass_to_pass_passed": 19,
+    "pass_to_pass_total": 19,
+    "error": null
+  }
+}

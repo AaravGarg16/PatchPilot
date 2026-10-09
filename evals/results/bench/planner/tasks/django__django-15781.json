@@ -1,0 +1,54 @@
+{
+  "instance_id": "django__django-15781",
+  "source": "swebench",
+  "config": "planner",
+  "status": "done",
+  "error": null,
+  "self_accepted": true,
+  "attempts": 1,
+  "retries": 0,
+  "tool_calls": 15,
+  "tool_errors": 0,
+  "llm_calls": 16,
+  "input_tokens": 575123,
+  "output_tokens": 7909,
+  "cache_read_tokens": 443052,
+  "cache_write_tokens": 40024,
+  "max_prompt_tokens": 40026,
+  "mean_prompt_tokens": 35945.2,
+  "cost_usd": 0.45185440000000004,
+  "latency_seconds": 299.54,
+  "tests_before_passed": null,
+  "tests_after_passed": true,
+  "retrieved_files": [
+    "docs/howto/custom-management-commands.txt",
+    "django/contrib/auth/management/commands/createsuperuser.py",
+    "docs/ref/django-admin.txt",
+    "django/core/management/__init__.py",
+    "django/core/management/base.py"
+  ],
+  "planned_files": [
+    "django/core/management/base.py",
+    "tests/user_commands/tests.py",
+    "tests/user_commands/management/commands/dance.py",
+    "docs/ref/django-admin.txt",
+    "docs/howto/custom-management-commands.txt"
+  ],
+  "gold_files": [
+    "django/core/management/base.py"
+  ],
+  "model_patch": "diff --git a/django/core/management/base.py b/django/core/management/base.py\nindex d37d43d5c5..b203f1d19f 100644\n--- a/django/core/management/base.py\n+++ b/django/core/management/base.py\n@@ -289,7 +289,7 @@ class BaseCommand:\n         parser = CommandParser(\n             prog=\"%s %s\" % (os.path.basename(prog_name), subcommand),\n             description=self.help or None,\n-            formatter_class=DjangoHelpFormatter,\n+            formatter_class=kwargs.pop(\"formatter_class\", DjangoHelpFormatter),\n             missing_args_message=getattr(self, \"missing_args_message\", None),\n             called_from_command_line=getattr(self, \"_called_from_command_line\", None),\n             **kwargs,\ndiff --git a/docs/howto/custom-management-commands.txt b/docs/howto/custom-management-commands.txt\nindex e797c15cbb..4b03fae480 100644\n--- a/docs/howto/custom-management-commands.txt\n+++ b/docs/howto/custom-management-commands.txt\n@@ -268,6 +268,30 @@ the :meth:`~BaseCommand.handle` method must be implemented.\n     You can customize the instance by overriding this method and calling\n     ``super()`` with ``kwargs`` of :class:`~argparse.ArgumentParser` parameters.\n \n+    You may need to customize the formatter used to display help messages, for\n+    example to preserve the formatting (such as line breaks and indentation)\n+    of your command's :attr:`~BaseCommand.help` text, which is otherwise\n+    re-wrapped by the default formatter. To do this, pass a ``formatter_class``\n+    to ``create_parser()``, e.g.::\n+\n+        import argparse\n+\n+        class Command(BaseCommand):\n+            help = \"\"\"\n+            Import a referenced object.\n+\n+            Example usage:\n+                ./manage.py import_obj 'My Object' 123\n+            \"\"\"\n+\n+            def create_parser(self, prog_name, subcommand, **kwargs):\n+                return super().create_parser(\n+                    prog_name,\n+                    subcommand,\n+                    formatter_class=argparse.RawDescriptionHelpFormatter,\n+                    **kwargs,\n+                )\n+\n .. method:: BaseCommand.add_arguments(parser)\n \n     Entry point to add parser arguments to handle command line arguments passed\ndiff --git a/docs/releases/4.2.txt b/docs/releases/4.2.txt\nindex 124470cf5b..e034da94a9 100644\n--- a/docs/releases/4.2.txt\n+++ b/docs/releases/4.2.txt\n@@ -166,6 +166,10 @@ Management Commands\n * The new :option:`makemigrations --update` option merges model changes into\n   the latest migration and optimizes the resulting operations.\n \n+* :meth:`~django.core.management.BaseCommand.create_parser` now allows\n+  passing a custom ``formatter_class`` to control how the command's help\n+  output, including the ``help`` attribute, is formatted.\n+\n Migrations\n ~~~~~~~~~~\n \n",
+  "trace_id": "4f2d4d9f673694d543b9de37d42925f9",
+  "final_evaluation": null,
+  "rejections": [],
+  "grade": {
+    "grader": "swebench",
+    "resolved": true,
+    "patch_applied": true,
+    "fail_to_pass_passed": 1,
+    "fail_to_pass_total": 1,
+    "pass_to_pass_passed": 43,
+    "pass_to_pass_total": 43,
+    "error": null
+  }
+}

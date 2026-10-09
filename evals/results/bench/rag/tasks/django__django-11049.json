@@ -1,0 +1,48 @@
+{
+  "instance_id": "django__django-11049",
+  "source": "swebench",
+  "config": "rag",
+  "status": "done",
+  "error": null,
+  "self_accepted": true,
+  "attempts": 1,
+  "retries": 0,
+  "tool_calls": 20,
+  "tool_errors": 2,
+  "llm_calls": 21,
+  "input_tokens": 695392,
+  "output_tokens": 9080,
+  "cache_read_tokens": 534320,
+  "cache_write_tokens": 29561,
+  "max_prompt_tokens": 41996,
+  "mean_prompt_tokens": 33113.9,
+  "cost_usd": 0.5345885,
+  "latency_seconds": 2985.48,
+  "tests_before_passed": null,
+  "tests_after_passed": true,
+  "retrieved_files": [
+    "django/db/models/fields/__init__.py",
+    "docs/releases/1.5.txt",
+    "django/forms/fields.py",
+    "django/db/migrations/autodetector.py",
+    "django/contrib/auth/management/commands/createsuperuser.py"
+  ],
+  "planned_files": [],
+  "gold_files": [
+    "django/db/models/fields/__init__.py"
+  ],
+  "model_patch": "diff --git a/django/db/models/fields/__init__.py b/django/db/models/fields/__init__.py\nindex f32ce64629..71005490f3 100644\n--- a/django/db/models/fields/__init__.py\n+++ b/django/db/models/fields/__init__.py\n@@ -1587,7 +1587,7 @@ class DurationField(Field):\n     empty_strings_allowed = False\n     default_error_messages = {\n         'invalid': _(\"'%(value)s' value has an invalid format. It must be in \"\n-                     \"[DD] [HH:[MM:]]ss[.uuuuuu] format.\")\n+                     \"[DD] [[HH:]MM:]ss[.uuuuuu] format.\")\n     }\n     description = _(\"Duration\")\n \n",
+  "trace_id": "a39e304de1ba621f1b625f785c190a88",
+  "final_evaluation": null,
+  "rejections": [],
+  "grade": {
+    "grader": "swebench",
+    "resolved": true,
+    "patch_applied": true,
+    "fail_to_pass_passed": 1,
+    "fail_to_pass_total": 1,
+    "pass_to_pass_passed": 8,
+    "pass_to_pass_total": 8,
+    "error": null
+  }
+}

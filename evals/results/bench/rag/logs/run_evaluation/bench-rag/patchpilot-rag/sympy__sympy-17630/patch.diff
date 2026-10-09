@@ -1,0 +1,82 @@
+diff --git a/debug_script.py b/debug_script.py
+new file mode 100644
+index 0000000000..3384fc3a34
+--- /dev/null
++++ b/debug_script.py
+@@ -0,0 +1,10 @@
++from sympy import MatrixSymbol, ZeroMatrix
++from sympy.matrices.expressions.blockmatrix import BlockMatrix
++
++a = MatrixSymbol("a", 2, 2)
++z = ZeroMatrix(2, 2)
++b = BlockMatrix([[a, z], [z, z]])
++prod = b.blocks * b.blocks
++print("TYPES:", [type(x) for x in prod])
++print("prod:", prod)
++assert False, str([type(x) for x in prod])
+diff --git a/sympy/matrices/expressions/tests/test_zzdebug2.py b/sympy/matrices/expressions/tests/test_zzdebug2.py
+new file mode 100644
+index 0000000000..9493e1f5fc
+--- /dev/null
++++ b/sympy/matrices/expressions/tests/test_zzdebug2.py
+@@ -0,0 +1,11 @@
++from sympy import MatrixSymbol, ZeroMatrix
++from sympy.matrices.expressions.blockmatrix import BlockMatrix
++
++
++def test_debug():
++    a = MatrixSymbol("a", 2, 2)
++    z = ZeroMatrix(2, 2)
++    b = BlockMatrix([[a, z], [z, z]])
++    prod = b.blocks * b.blocks
++    types = [type(x) for x in prod]
++    assert False, (types, prod)
+diff --git a/sympy/matrices/expressions/tests/test_zzdebug3.py b/sympy/matrices/expressions/tests/test_zzdebug3.py
+new file mode 100644
+index 0000000000..434e7de6bc
+--- /dev/null
++++ b/sympy/matrices/expressions/tests/test_zzdebug3.py
+@@ -0,0 +1,8 @@
++from sympy import ZeroMatrix, Add
++from sympy.core import Add as CAdd
++
++
++def test_debug():
++    z = ZeroMatrix(2, 2)
++    r = Add(z, z)
++    assert False, (type(r), r)
+diff --git a/sympy/matrices/expressions/tests/test_zzz_debug.py b/sympy/matrices/expressions/tests/test_zzz_debug.py
+new file mode 100644
+index 0000000000..b6beedecd8
+--- /dev/null
++++ b/sympy/matrices/expressions/tests/test_zzz_debug.py
+@@ -0,0 +1,12 @@
++from sympy import MatrixSymbol, ZeroMatrix
++from sympy.matrices.expressions.blockmatrix import BlockMatrix
++
++
++def test_debug():
++    a = MatrixSymbol("a", 2, 2)
++    z = ZeroMatrix(2, 2)
++    b = BlockMatrix([[a, z], [z, z]])
++    r1 = b._blockmul(b)
++    print("TYPES:", [type(x) for x in r1.blocks])
++    print("r1 blocks:", r1.blocks)
++    raise AssertionError("debug stop: %r" % ([type(x) for x in r1.blocks],))
+diff --git a/sympy/matrices/expressions/tests/zzdebug_test.py b/sympy/matrices/expressions/tests/zzdebug_test.py
+new file mode 100644
+index 0000000000..9493e1f5fc
+--- /dev/null
++++ b/sympy/matrices/expressions/tests/zzdebug_test.py
+@@ -0,0 +1,11 @@
++from sympy import MatrixSymbol, ZeroMatrix
++from sympy.matrices.expressions.blockmatrix import BlockMatrix
++
++
++def test_debug():
++    a = MatrixSymbol("a", 2, 2)
++    z = ZeroMatrix(2, 2)
++    b = BlockMatrix([[a, z], [z, z]])
++    prod = b.blocks * b.blocks
++    types = [type(x) for x in prod]
++    assert False, (types, prod)

@@ -1,0 +1,63 @@
+diff --git a/django/core/management/base.py b/django/core/management/base.py
+index d37d43d5c5..b203f1d19f 100644
+--- a/django/core/management/base.py
++++ b/django/core/management/base.py
+@@ -289,7 +289,7 @@ class BaseCommand:
+         parser = CommandParser(
+             prog="%s %s" % (os.path.basename(prog_name), subcommand),
+             description=self.help or None,
+-            formatter_class=DjangoHelpFormatter,
++            formatter_class=kwargs.pop("formatter_class", DjangoHelpFormatter),
+             missing_args_message=getattr(self, "missing_args_message", None),
+             called_from_command_line=getattr(self, "_called_from_command_line", None),
+             **kwargs,
+diff --git a/docs/howto/custom-management-commands.txt b/docs/howto/custom-management-commands.txt
+index e797c15cbb..4b03fae480 100644
+--- a/docs/howto/custom-management-commands.txt
++++ b/docs/howto/custom-management-commands.txt
+@@ -268,6 +268,30 @@ the :meth:`~BaseCommand.handle` method must be implemented.
+     You can customize the instance by overriding this method and calling
+     ``super()`` with ``kwargs`` of :class:`~argparse.ArgumentParser` parameters.
+ 
++    You may need to customize the formatter used to display help messages, for
++    example to preserve the formatting (such as line breaks and indentation)
++    of your command's :attr:`~BaseCommand.help` text, which is otherwise
++    re-wrapped by the default formatter. To do this, pass a ``formatter_class``
++    to ``create_parser()``, e.g.::
++
++        import argparse
++
++        class Command(BaseCommand):
++            help = """
++            Import a referenced object.
++
++            Example usage:
++                ./manage.py import_obj 'My Object' 123
++            """
++
++            def create_parser(self, prog_name, subcommand, **kwargs):
++                return super().create_parser(
++                    prog_name,
++                    subcommand,
++                    formatter_class=argparse.RawDescriptionHelpFormatter,
++                    **kwargs,
++                )
++
+ .. method:: BaseCommand.add_arguments(parser)
+ 
+     Entry point to add parser arguments to handle command line arguments passed
+diff --git a/docs/releases/4.2.txt b/docs/releases/4.2.txt
+index 124470cf5b..e034da94a9 100644
+--- a/docs/releases/4.2.txt
++++ b/docs/releases/4.2.txt
+@@ -166,6 +166,10 @@ Management Commands
+ * The new :option:`makemigrations --update` option merges model changes into
+   the latest migration and optimizes the resulting operations.
+ 
++* :meth:`~django.core.management.BaseCommand.create_parser` now allows
++  passing a custom ``formatter_class`` to control how the command's help
++  output, including the ``help`` attribute, is formatted.
++
+ Migrations
+ ~~~~~~~~~~
+ 

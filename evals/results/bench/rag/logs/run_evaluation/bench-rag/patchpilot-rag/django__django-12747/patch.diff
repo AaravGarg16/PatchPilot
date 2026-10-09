@@ -1,0 +1,17 @@
+diff --git a/django/db/models/query.py b/django/db/models/query.py
+index d9c9b0db04..30d1bbebb0 100644
+--- a/django/db/models/query.py
++++ b/django/db/models/query.py
+@@ -735,6 +735,12 @@ class QuerySet:
+         collector.collect(del_query)
+         deleted, _rows_count = collector.delete()
+ 
++        # Ensure the queryset's own model is always included in the
++        # per-model counts, even if nothing was deleted, for a consistent
++        # return value regardless of whether fast deletion was used.
++        if deleted == 0:
++            _rows_count.setdefault(self.model._meta.label, 0)
++
+         # Clear the result cache, in case this QuerySet gets reused.
+         self._result_cache = None
+         return deleted, _rows_count

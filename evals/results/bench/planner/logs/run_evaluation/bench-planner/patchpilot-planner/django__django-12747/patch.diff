@@ -1,0 +1,18 @@
+diff --git a/django/db/models/deletion.py b/django/db/models/deletion.py
+index 16dff6a1cd..2b2a2ec05a 100644
+--- a/django/db/models/deletion.py
++++ b/django/db/models/deletion.py
+@@ -105,6 +105,13 @@ class Collector:
+         Return a list of all objects that were not already collected.
+         """
+         if not objs:
++            # Register the model so that it ends up in the final counts
++            # (with a 0 count) even if there's nothing to delete, to keep
++            # the result of Collector.delete() consistent regardless of
++            # whether the model could be fast-deleted or not.
++            model = getattr(objs, 'model', None)
++            if model is not None:
++                self.data.setdefault(model, self.data.default_factory())
+             return []
+         new_objs = []
+         model = objs[0].__class__

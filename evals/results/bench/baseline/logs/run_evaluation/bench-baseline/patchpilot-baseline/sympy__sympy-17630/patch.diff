@@ -1,0 +1,17 @@
+diff --git a/sympy/matrices/expressions/tests/test_debug_tmp.py b/sympy/matrices/expressions/tests/test_debug_tmp.py
+new file mode 100644
+index 0000000000..40be98eb3d
+--- /dev/null
++++ b/sympy/matrices/expressions/tests/test_debug_tmp.py
+@@ -0,0 +1,11 @@
++from sympy import MatrixSymbol, ZeroMatrix
++from sympy.matrices.expressions.blockmatrix import BlockMatrix, block_collapse
++
++def test_debug():
++    a = MatrixSymbol("a", 2, 2)
++    z = ZeroMatrix(2, 2)
++    b = BlockMatrix([[a, z], [z, z]])
++    r1 = b._blockmul(b)
++    print("r1 blocks types:", [type(x) for x in r1.blocks])
++    r2 = r1._blockmul(b)
++    print("r2:", r2)

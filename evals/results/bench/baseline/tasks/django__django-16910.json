@@ -1,0 +1,42 @@
+{
+  "instance_id": "django__django-16910",
+  "source": "swebench",
+  "config": "baseline",
+  "status": "done",
+  "error": null,
+  "self_accepted": true,
+  "attempts": 1,
+  "retries": 0,
+  "tool_calls": 25,
+  "tool_errors": 0,
+  "llm_calls": 25,
+  "input_tokens": 213756,
+  "output_tokens": 8168,
+  "cache_read_tokens": 56684,
+  "cache_write_tokens": 6340,
+  "max_prompt_tokens": 15265,
+  "mean_prompt_tokens": 8550.2,
+  "cost_usd": 0.4103308,
+  "latency_seconds": 97.56,
+  "tests_before_passed": null,
+  "tests_after_passed": true,
+  "retrieved_files": [],
+  "planned_files": [],
+  "gold_files": [
+    "django/db/models/sql/query.py"
+  ],
+  "model_patch": "diff --git a/django/db/models/sql/query.py b/django/db/models/sql/query.py\nindex 781dfd5499..c1f0c229c3 100644\n--- a/django/db/models/sql/query.py\n+++ b/django/db/models/sql/query.py\n@@ -779,7 +779,10 @@ class Query(BaseExpression):\n         # Only include fields mentioned in the mask.\n         for field_name, field_mask in mask.items():\n             field = opts.get_field(field_name)\n-            field_select_mask = select_mask.setdefault(field, {})\n+            # Retrieve the actual field associated with reverse relationships\n+            # as that's the field on which the select mask should be set.\n+            field_key = field.remote_field if field.is_relation else field\n+            field_select_mask = select_mask.setdefault(field_key, {})\n             if field_mask:\n                 if not field.is_relation:\n                     raise FieldError(next(iter(field_mask)))\n",
+  "trace_id": "d993d7e7570bdd4138ea7c6d93566346",
+  "final_evaluation": null,
+  "rejections": [],
+  "grade": {
+    "grader": "swebench",
+    "resolved": false,
+    "patch_applied": true,
+    "fail_to_pass_passed": 2,
+    "fail_to_pass_total": 2,
+    "pass_to_pass_passed": 31,
+    "pass_to_pass_total": 36,
+    "error": null
+  }
+}

@@ -1,0 +1,29 @@
+diff --git a/sympy/utilities/iterables.py b/sympy/utilities/iterables.py
+index d96e76263b..f3feec11b1 100644
+--- a/sympy/utilities/iterables.py
++++ b/sympy/utilities/iterables.py
+@@ -2105,11 +2105,24 @@ def uniq(seq, result=None):
+     [1, 4, 5, 2]
+     >>> list(uniq([[1], [2, 1], [1]]))
+     [[1], [2, 1]]
++
++    If an iterable is used in place of a list, the returned values may not be
++    unique if the iterable is not a sequence (e.g. a generator) since
++    ``uniq`` does not read the entire iterable before returning results. If
++    the input is a list-like object that supports ``len`` and that object is
++    modified while ``uniq`` is iterating over it, a ``RuntimeError`` will be
++    raised.
+     """
+     try:
+         seen = set()
+         result = result or []
++        try:
++            n = len(seq)
++        except TypeError:
++            n = None
+         for i, s in enumerate(seq):
++            if n is not None and len(seq) != n:
++                raise RuntimeError('sequence changed size during iteration')
+             if not (s in seen or seen.add(s)):
+                 yield s
+     except TypeError:

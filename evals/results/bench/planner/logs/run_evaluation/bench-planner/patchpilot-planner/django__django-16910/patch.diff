@@ -1,0 +1,43 @@
+diff --git a/django/db/models/sql/query.py b/django/db/models/sql/query.py
+index 781dfd5499..3b4984a3b4 100644
+--- a/django/db/models/sql/query.py
++++ b/django/db/models/sql/query.py
+@@ -779,11 +779,17 @@ class Query(BaseExpression):
+         # Only include fields mentioned in the mask.
+         for field_name, field_mask in mask.items():
+             field = opts.get_field(field_name)
+-            field_select_mask = select_mask.setdefault(field, {})
++            # Retrieve the actual field associated with reverse relationships
++            # as that's what is expected in the select mask.
++            if field in opts.related_objects:
++                field_key = field.field
++            else:
++                field_key = field
++            field_select_mask = select_mask.setdefault(field_key, {})
+             if field_mask:
+                 if not field.is_relation:
+                     raise FieldError(next(iter(field_mask)))
+-                related_model = field.remote_field.model._meta.concrete_model
++                related_model = field.related_model._meta.concrete_model
+                 self._get_only_select_mask(
+                     related_model._meta, field_mask, field_select_mask
+                 )
+diff --git a/tests/select_related_onetoone/debug_test.py b/tests/select_related_onetoone/debug_test.py
+new file mode 100644
+index 0000000000..b2c78709b6
+--- /dev/null
++++ b/tests/select_related_onetoone/debug_test.py
+@@ -0,0 +1,13 @@
++from django.test import TestCase
++
++from .models import Child4, Parent2
++
++
++class DebugTest(TestCase):
++    def test_debug(self):
++        Child4.objects.create(name1="n1", name2="n2", value=1, value4=4)
++        qs = Parent2.objects.select_related("child1", "child1__child4").only(
++            "id2", "child1__value", "child1__child4__value4"
++        )
++        print("SQL:", str(qs.query))
++        print("SELECT MASK:", qs.query.get_select_mask())

@@ -1,0 +1,53 @@
+2026-10-09 08:46:51,810 - INFO - Creating container for django__django-11049...
+2026-10-09 08:46:51,977 - INFO - Container for django__django-11049 created: faffd453e31fc2d32238bd88fede0489ba0ac3aa2dd0ce7125e2ba18073d7f1c
+2026-10-09 08:46:52,192 - INFO - Container for django__django-11049 started: faffd453e31fc2d32238bd88fede0489ba0ac3aa2dd0ce7125e2ba18073d7f1c
+2026-10-09 08:46:52,192 - INFO - Intermediate patch for django__django-11049 written to logs/run_evaluation/bench-planner/patchpilot-planner/django__django-11049/patch.diff, now applying to container...
+2026-10-09 08:46:52,473 - INFO - >>>>> Applied Patch:
+Checking patch django/forms/fields.py...
+warning: django/forms/fields.py has type 100755, expected 100644
+Applied patch django/forms/fields.py cleanly.
+
+2026-10-09 08:46:53,697 - INFO - Git diff before:
+diff --git a/django/forms/fields.py b/django/forms/fields.py
+index a977256525..8494f31f79 100755
+--- a/django/forms/fields.py
++++ b/django/forms/fields.py
+@@ -472,6 +472,11 @@ class DurationField(Field):
+         'overflow': _('The number of days must be between {min_days} and {max_days}.')
+     }
+ 
++    def __init__(self, *, help_text='', **kwargs):
++        if not help_text:
++            help_text = _('Enter a valid duration, e.g. "3 days, 2:15" or "2:15:30.5".')
++        super().__init__(help_text=help_text, **kwargs)
++
+     def prepare_value(self, value):
+         if isinstance(value, datetime.timedelta):
+             return duration_string(value)
+2026-10-09 08:46:53,697 - INFO - Eval script for django__django-11049 written to logs/run_evaluation/bench-planner/patchpilot-planner/django__django-11049/eval.sh; copying to container...
+2026-10-09 08:47:08,293 - INFO - Test runtime: 14.51 seconds
+2026-10-09 08:47:08,298 - INFO - Test output for django__django-11049 written to logs/run_evaluation/bench-planner/patchpilot-planner/django__django-11049/test_output.txt
+2026-10-09 08:47:08,478 - INFO - Git diff after:
+diff --git a/django/forms/fields.py b/django/forms/fields.py
+index a977256525..8494f31f79 100755
+--- a/django/forms/fields.py
++++ b/django/forms/fields.py
+@@ -472,6 +472,11 @@ class DurationField(Field):
+         'overflow': _('The number of days must be between {min_days} and {max_days}.')
+     }
+ 
++    def __init__(self, *, help_text='', **kwargs):
++        if not help_text:
++            help_text = _('Enter a valid duration, e.g. "3 days, 2:15" or "2:15:30.5".')
++        super().__init__(help_text=help_text, **kwargs)
++
+     def prepare_value(self, value):
+         if isinstance(value, datetime.timedelta):
+             return duration_string(value)
+2026-10-09 08:47:08,478 - INFO - Grading answer for django__django-11049...
+2026-10-09 08:47:08,491 - INFO - report: {'django__django-11049': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': False, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': [], 'failure': ['test_invalid_string (model_fields.test_durationfield.TestValidation)']}, 'PASS_TO_PASS': {'success': ['test_dumping (model_fields.test_durationfield.TestSerialization)', 'test_loading (model_fields.test_durationfield.TestSerialization)', 'test_formfield (model_fields.test_durationfield.TestFormField)', 'test_exact (model_fields.test_durationfield.TestQuerying)', 'test_gt (model_fields.test_durationfield.TestQuerying)', 'test_create_empty (model_fields.test_durationfield.TestSaveLoad)', 'test_fractional_seconds (model_fields.test_durationfield.TestSaveLoad)', 'test_simple_roundtrip (model_fields.test_durationfield.TestSaveLoad)'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for django__django-11049: resolved: False
+2026-10-09 08:47:08,492 - INFO - Attempting to stop container sweb.eval.django__django-11049.bench-planner...
+2026-10-09 08:47:23,885 - INFO - Container sweb.eval.django__django-11049.bench-planner stopped successfully.
+2026-10-09 08:47:23,885 - INFO - Attempting to remove container sweb.eval.django__django-11049.bench-planner...
+2026-10-09 08:47:23,966 - INFO - Container sweb.eval.django__django-11049.bench-planner removed successfully.

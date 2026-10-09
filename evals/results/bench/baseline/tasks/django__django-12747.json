@@ -1,0 +1,70 @@
+{
+  "instance_id": "django__django-12747",
+  "source": "swebench",
+  "config": "baseline",
+  "status": "done",
+  "error": null,
+  "self_accepted": false,
+  "attempts": 3,
+  "retries": 2,
+  "tool_calls": 77,
+  "tool_errors": 0,
+  "llm_calls": 75,
+  "input_tokens": 915368,
+  "output_tokens": 29529,
+  "cache_read_tokens": 309829,
+  "cache_write_tokens": 23336,
+  "max_prompt_tokens": 21559,
+  "mean_prompt_tokens": 12204.9,
+  "cost_usd": 1.5800018,
+  "latency_seconds": 385.07,
+  "tests_before_passed": null,
+  "tests_after_passed": false,
+  "retrieved_files": [],
+  "planned_files": [],
+  "gold_files": [
+    "django/db/models/deletion.py"
+  ],
+  "model_patch": "diff --git a/django/db/models/deletion.py b/django/db/models/deletion.py\nindex 16dff6a1cd..d45b9a0215 100644\n--- a/django/db/models/deletion.py\n+++ b/django/db/models/deletion.py\n@@ -408,7 +408,8 @@ class Collector:\n             # fast deletes\n             for qs in self.fast_deletes:\n                 count = qs._raw_delete(using=self.using)\n-                deleted_counter[qs.model._meta.label] += count\n+                if count:\n+                    deleted_counter[qs.model._meta.label] += count\n \n             # update fields\n             for model, instances_for_fieldvalues in self.field_updates.items():\n",
+  "trace_id": "50805a7a7696859f05586086c32dcbd2",
+  "final_evaluation": null,
+  "rejections": [
+    {
+      "attempt": 1,
+      "tests_passed": false,
+      "tests_ran": true,
+      "tests_selected": [
+        "tests/delete/tests.py"
+      ],
+      "problems": []
+    },
+    {
+      "attempt": 2,
+      "tests_passed": false,
+      "tests_ran": true,
+      "tests_selected": [
+        "tests/delete/tests.py"
+      ],
+      "problems": []
+    },
+    {
+      "attempt": 3,
+      "tests_passed": false,
+      "tests_ran": true,
+      "tests_selected": [
+        "tests/delete/tests.py"
+      ],
+      "problems": []
+    }
+  ],
+  "grade": {
+    "grader": "swebench",
+    "resolved": true,
+    "patch_applied": true,
+    "fail_to_pass_passed": 3,
+    "fail_to_pass_total": 3,
+    "pass_to_pass_passed": 49,
+    "pass_to_pass_total": 49,
+    "error": null
+  }
+}

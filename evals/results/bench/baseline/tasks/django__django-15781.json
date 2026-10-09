@@ -1,0 +1,42 @@
+{
+  "instance_id": "django__django-15781",
+  "source": "swebench",
+  "config": "baseline",
+  "status": "done",
+  "error": null,
+  "self_accepted": true,
+  "attempts": 1,
+  "retries": 0,
+  "tool_calls": 20,
+  "tool_errors": 0,
+  "llm_calls": 21,
+  "input_tokens": 196391,
+  "output_tokens": 6382,
+  "cache_read_tokens": 52458,
+  "cache_write_tokens": 7747,
+  "max_prompt_tokens": 14611,
+  "mean_prompt_tokens": 9352.0,
+  "cost_usd": 0.36605109999999996,
+  "latency_seconds": 206.71,
+  "tests_before_passed": null,
+  "tests_after_passed": true,
+  "retrieved_files": [],
+  "planned_files": [],
+  "gold_files": [
+    "django/core/management/base.py"
+  ],
+  "model_patch": "diff --git a/django/core/management/base.py b/django/core/management/base.py\nindex d37d43d5c5..abc6f79a15 100644\n--- a/django/core/management/base.py\n+++ b/django/core/management/base.py\n@@ -286,10 +286,10 @@ class BaseCommand:\n         Create and return the ``ArgumentParser`` which will be used to\n         parse the arguments to this command.\n         \"\"\"\n+        kwargs.setdefault(\"formatter_class\", DjangoHelpFormatter)\n         parser = CommandParser(\n             prog=\"%s %s\" % (os.path.basename(prog_name), subcommand),\n             description=self.help or None,\n-            formatter_class=DjangoHelpFormatter,\n             missing_args_message=getattr(self, \"missing_args_message\", None),\n             called_from_command_line=getattr(self, \"_called_from_command_line\", None),\n             **kwargs,\ndiff --git a/docs/howto/custom-management-commands.txt b/docs/howto/custom-management-commands.txt\nindex e797c15cbb..dc7342f9ce 100644\n--- a/docs/howto/custom-management-commands.txt\n+++ b/docs/howto/custom-management-commands.txt\n@@ -268,6 +268,14 @@ the :meth:`~BaseCommand.handle` method must be implemented.\n     You can customize the instance by overriding this method and calling\n     ``super()`` with ``kwargs`` of :class:`~argparse.ArgumentParser` parameters.\n \n+    The parser's ``formatter_class`` defaults to a subclass that reorders the\n+    default arguments so that command-specific arguments appear before them\n+    in the ``--help`` output. Pass a different ``formatter_class`` keyword\n+    argument to ``create_parser()`` to further customize the formatting of\n+    the command's help output, for example to preserve the line breaks of a\n+    multiline ``help`` message by using\n+    :class:`argparse.RawDescriptionHelpFormatter` or a custom subclass of it.\n+\n .. method:: BaseCommand.add_arguments(parser)\n \n     Entry point to add parser arguments to handle command line arguments passed\n",
+  "trace_id": "942dcc9db7b12f0d1295d390c9108614",
+  "final_evaluation": null,
+  "rejections": [],
+  "grade": {
+    "grader": "swebench",
+    "resolved": true,
+    "patch_applied": true,
+    "fail_to_pass_passed": 1,
+    "fail_to_pass_total": 1,
+    "pass_to_pass_passed": 43,
+    "pass_to_pass_total": 43,
+    "error": null
+  }
+}
