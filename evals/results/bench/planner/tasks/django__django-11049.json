@@ -1,0 +1,83 @@
+{
+  "instance_id": "django__django-11049",
+  "source": "swebench",
+  "config": "planner",
+  "status": "done",
+  "error": null,
+  "self_accepted": true,
+  "attempts": 3,
+  "retries": 2,
+  "tool_calls": 50,
+  "tool_errors": 4,
+  "llm_calls": 51,
+  "input_tokens": 2153470,
+  "output_tokens": 38564,
+  "cache_read_tokens": 1382799,
+  "cache_write_tokens": 117464,
+  "max_prompt_tokens": 59074,
+  "mean_prompt_tokens": 42224.9,
+  "cost_usd": 2.2622738,
+  "latency_seconds": 592.85,
+  "tests_before_passed": null,
+  "tests_after_passed": true,
+  "retrieved_files": [
+    "django/forms/fields.py",
+    "docs/releases/1.5.txt",
+    "django/db/models/fields/__init__.py",
+    "django/db/migrations/autodetector.py",
+    "django/contrib/auth/management/commands/createsuperuser.py"
+  ],
+  "planned_files": [
+    "django/db/models/fields/__init__.py",
+    "django/forms/fields.py",
+    "tests/model_fields/test_durationfield.py",
+    "tests/forms_tests/field_tests/test_durationfield.py",
+    "docs/ref/models/fields.txt"
+  ],
+  "gold_files": [
+    "django/db/models/fields/__init__.py"
+  ],
+  "model_patch": "diff --git a/django/forms/fields.py b/django/forms/fields.py\nindex a977256525..8494f31f79 100644\n--- a/django/forms/fields.py\n+++ b/django/forms/fields.py\n@@ -472,6 +472,11 @@ class DurationField(Field):\n         'overflow': _('The number of days must be between {min_days} and {max_days}.')\n     }\n \n+    def __init__(self, *, help_text='', **kwargs):\n+        if not help_text:\n+            help_text = _('Enter a valid duration, e.g. \"3 days, 2:15\" or \"2:15:30.5\".')\n+        super().__init__(help_text=help_text, **kwargs)\n+\n     def prepare_value(self, value):\n         if isinstance(value, datetime.timedelta):\n             return duration_string(value)\n",
+  "trace_id": "c6295d55afb3af898985f11653cae427",
+  "final_evaluation": null,
+  "rejections": [
+    {
+      "attempt": 1,
+      "tests_passed": false,
+      "tests_ran": true,
+      "tests_selected": [
+        "tests/model_fields/test_durationfield.py",
+        "tests/forms_tests/field_tests/test_durationfield.py",
+        "tests/model_fields/test_field_flags.py",
+        "tests/forms_tests/field_tests/test_base.py",
+        "tests/forms_tests/field_tests/test_urlfield.py",
+        "tests/forms_tests/field_tests/test_charfield.py"
+      ],
+      "problems": []
+    },
+    {
+      "attempt": 2,
+      "tests_passed": false,
+      "tests_ran": true,
+      "tests_selected": [
+        "tests/model_fields/test_durationfield.py",
+        "tests/forms_tests/field_tests/test_durationfield.py",
+        "tests/model_fields/test_field_flags.py",
+        "tests/forms_tests/field_tests/test_base.py",
+        "tests/forms_tests/field_tests/test_urlfield.py",
+        "tests/forms_tests/field_tests/test_charfield.py"
+      ],
+      "problems": []
+    }
+  ],
+  "grade": {
+    "grader": "swebench",
+    "resolved": false,
+    "patch_applied": true,
+    "fail_to_pass_passed": 0,
+    "fail_to_pass_total": 1,
+    "pass_to_pass_passed": 8,
+    "pass_to_pass_total": 8,
+    "error": null
+  }
+}

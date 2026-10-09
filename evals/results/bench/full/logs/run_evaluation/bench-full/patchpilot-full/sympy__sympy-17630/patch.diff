@@ -1,0 +1,71 @@
+diff --git a/sympy/matrices/dense.py b/sympy/matrices/dense.py
+index 1844475199..bf82f40fd9 100644
+--- a/sympy/matrices/dense.py
++++ b/sympy/matrices/dense.py
+@@ -193,17 +193,26 @@ def _eval_matrix_mul(self, other):
+                 row, col = i // new_mat_cols, i % new_mat_cols
+                 row_indices = range(self_cols*row, self_cols*(row+1))
+                 col_indices = range(col, other_len, other_cols)
+-                vec = (mat[a]*other_mat[b] for a,b in zip(row_indices, col_indices))
+-                try:
+-                    new_mat[i] = Add(*vec)
+-                except (TypeError, SympifyError):
++                vec = [mat[a]*other_mat[b] for a,b in zip(row_indices, col_indices)]
++                if any(getattr(term, 'is_MatrixExpr', False) for term in vec):
+                     # Block matrices don't work with `sum` or `Add` (ISSUE #11599)
+-                    # They don't work with `sum` because `sum` tries to add `0`
+-                    # initially, and for a matrix, that is a mix of a scalar and
+-                    # a matrix, which raises a TypeError. Fall back to a
+-                    # block-matrix-safe way to multiply if the `sum` fails.
+-                    vec = (mat[a]*other_mat[b] for a,b in zip(row_indices, col_indices))
+-                    new_mat[i] = reduce(lambda a,b: a + b, vec)
++                    # and, more insidiously, core `Add` can silently collapse an
++                    # all-zero sum of matrix-shaped terms (e.g. ZeroMatrix
++                    # instances) into the scalar `0` instead of a properly
++                    # shaped zero matrix. Avoid both problems for matrix-valued
++                    # terms by adding them pairwise with the `+` operator,
++                    # which dispatches to the matrix-aware addition.
++                    new_mat[i] = reduce(lambda a, b: a + b, vec)
++                else:
++                    try:
++                        new_mat[i] = Add(*vec)
++                    except (TypeError, SympifyError):
++                        # Block matrices don't work with `sum` or `Add` (ISSUE #11599)
++                        # They don't work with `sum` because `sum` tries to add `0`
++                        # initially, and for a matrix, that is a mix of a scalar and
++                        # a matrix, which raises a TypeError. Fall back to a
++                        # block-matrix-safe way to multiply if the `sum` fails.
++                        new_mat[i] = reduce(lambda a,b: a + b, vec)
+         return classof(self, other)._new(new_mat_rows, new_mat_cols, new_mat, copy=False)
+ 
+     def _eval_matrix_mul_elementwise(self, other):
+diff --git a/sympy/matrices/expressions/tests/test_blockmatrix_zero_regression.py b/sympy/matrices/expressions/tests/test_blockmatrix_zero_regression.py
+new file mode 100644
+index 0000000000..e01b14ea5c
+--- /dev/null
++++ b/sympy/matrices/expressions/tests/test_blockmatrix_zero_regression.py
+@@ -0,0 +1,24 @@
++from sympy import MatrixSymbol, ZeroMatrix
++from sympy.matrices.expressions.blockmatrix import BlockMatrix, block_collapse
++from sympy.matrices.expressions.matexpr import ZeroMatrix as ZeroMatrixType
++
++
++def test_block_collapse_zero_matrix_repeated_blockmul():
++    # Regression test for issue where block-multiplying a BlockMatrix
++    # with ZeroMatrix blocks more than once raised an AttributeError
++    # because the intermediate zero blocks became bare scalar `Zero`
++    # instead of `ZeroMatrix`.
++    a = MatrixSymbol("a", 2, 2)
++    z = ZeroMatrix(2, 2)
++    b = BlockMatrix([[a, z], [z, z]])
++
++    once = b._blockmul(b)
++    assert isinstance(once.blocks[0, 1], ZeroMatrixType)
++    assert isinstance(once.blocks[1, 0], ZeroMatrixType)
++    assert isinstance(once.blocks[1, 1], ZeroMatrixType)
++
++    twice = once._blockmul(b)
++    assert isinstance(twice.blocks[0, 1], ZeroMatrixType)
++
++    result = block_collapse(b * b * b)
++    assert result.shape == (4, 4)

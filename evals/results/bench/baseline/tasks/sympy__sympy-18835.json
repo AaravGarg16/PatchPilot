@@ -1,0 +1,42 @@
+{
+  "instance_id": "sympy__sympy-18835",
+  "source": "swebench",
+  "config": "baseline",
+  "status": "done",
+  "error": null,
+  "self_accepted": true,
+  "attempts": 1,
+  "retries": 0,
+  "tool_calls": 13,
+  "tool_errors": 0,
+  "llm_calls": 14,
+  "input_tokens": 92391,
+  "output_tokens": 5460,
+  "cache_read_tokens": 81628,
+  "cache_write_tokens": 10735,
+  "max_prompt_tokens": 10737,
+  "mean_prompt_tokens": 6599.4,
+  "cost_usd": 0.0978191,
+  "latency_seconds": 77.73,
+  "tests_before_passed": null,
+  "tests_after_passed": true,
+  "retrieved_files": [],
+  "planned_files": [],
+  "gold_files": [
+    "sympy/utilities/iterables.py"
+  ],
+  "model_patch": "diff --git a/sympy/utilities/iterables.py b/sympy/utilities/iterables.py\nindex d96e76263b..f3feec11b1 100644\n--- a/sympy/utilities/iterables.py\n+++ b/sympy/utilities/iterables.py\n@@ -2105,11 +2105,24 @@ def uniq(seq, result=None):\n     [1, 4, 5, 2]\n     >>> list(uniq([[1], [2, 1], [1]]))\n     [[1], [2, 1]]\n+\n+    If an iterable is used in place of a list, the returned values may not be\n+    unique if the iterable is not a sequence (e.g. a generator) since\n+    ``uniq`` does not read the entire iterable before returning results. If\n+    the input is a list-like object that supports ``len`` and that object is\n+    modified while ``uniq`` is iterating over it, a ``RuntimeError`` will be\n+    raised.\n     \"\"\"\n     try:\n         seen = set()\n         result = result or []\n+        try:\n+            n = len(seq)\n+        except TypeError:\n+            n = None\n         for i, s in enumerate(seq):\n+            if n is not None and len(seq) != n:\n+                raise RuntimeError('sequence changed size during iteration')\n             if not (s in seen or seen.add(s)):\n                 yield s\n     except TypeError:\n",
+  "trace_id": "c4dd0627ba3d63ab60fa8a0d0f3467d8",
+  "final_evaluation": null,
+  "rejections": [],
+  "grade": {
+    "grader": "swebench",
+    "resolved": false,
+    "patch_applied": true,
+    "fail_to_pass_passed": 0,
+    "fail_to_pass_total": 1,
+    "pass_to_pass_passed": 41,
+    "pass_to_pass_total": 41,
+    "error": null
+  }
+}

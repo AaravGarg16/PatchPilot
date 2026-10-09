@@ -1,0 +1,35 @@
+diff --git a/debug_ceiling.py b/debug_ceiling.py
+new file mode 100644
+index 0000000000..2a1ce6c909
+--- /dev/null
++++ b/debug_ceiling.py
+@@ -0,0 +1,12 @@
++import sympy
++from sympy import Symbol, ceiling
++
++def test_debug():
++    e1 = sympy.sympify('4*ceiling(x/4 - 3/4)', evaluate=False)
++    print("e1:", repr(e1), e1.args[1].args)
++    print("e1 simplified:", e1.simplify())
++
++    e2 = sympy.sympify('4*ceiling(x/4 - 3/4)', evaluate=True)
++    print("e2:", repr(e2), e2.args[1].args)
++    print("e2 simplified:", e2.simplify())
++    assert False
+diff --git a/sympy/simplify/tests/test_debug_ceiling.py b/sympy/simplify/tests/test_debug_ceiling.py
+new file mode 100644
+index 0000000000..f8285e91be
+--- /dev/null
++++ b/sympy/simplify/tests/test_debug_ceiling.py
+@@ -0,0 +1,11 @@
++import sympy
++
++def test_debug():
++    e1 = sympy.sympify('4*ceiling(x/4 - 3/4)', evaluate=False)
++    print("e1:", repr(e1), e1.args[1].args)
++    print("e1 simplified:", e1.simplify())
++
++    e2 = sympy.sympify('4*ceiling(x/4 - 3/4)', evaluate=True)
++    print("e2:", repr(e2), e2.args[1].args)
++    print("e2 simplified:", e2.simplify())
++    assert False

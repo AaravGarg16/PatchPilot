@@ -1,0 +1,35 @@
+diff --git a/django/core/management/base.py b/django/core/management/base.py
+index d37d43d5c5..abc6f79a15 100644
+--- a/django/core/management/base.py
++++ b/django/core/management/base.py
+@@ -286,10 +286,10 @@ class BaseCommand:
+         Create and return the ``ArgumentParser`` which will be used to
+         parse the arguments to this command.
+         """
++        kwargs.setdefault("formatter_class", DjangoHelpFormatter)
+         parser = CommandParser(
+             prog="%s %s" % (os.path.basename(prog_name), subcommand),
+             description=self.help or None,
+-            formatter_class=DjangoHelpFormatter,
+             missing_args_message=getattr(self, "missing_args_message", None),
+             called_from_command_line=getattr(self, "_called_from_command_line", None),
+             **kwargs,
+diff --git a/docs/howto/custom-management-commands.txt b/docs/howto/custom-management-commands.txt
+index e797c15cbb..dc7342f9ce 100644
+--- a/docs/howto/custom-management-commands.txt
++++ b/docs/howto/custom-management-commands.txt
+@@ -268,6 +268,14 @@ the :meth:`~BaseCommand.handle` method must be implemented.
+     You can customize the instance by overriding this method and calling
+     ``super()`` with ``kwargs`` of :class:`~argparse.ArgumentParser` parameters.
+ 
++    The parser's ``formatter_class`` defaults to a subclass that reorders the
++    default arguments so that command-specific arguments appear before them
++    in the ``--help`` output. Pass a different ``formatter_class`` keyword
++    argument to ``create_parser()`` to further customize the formatting of
++    the command's help output, for example to preserve the line breaks of a
++    multiline ``help`` message by using
++    :class:`argparse.RawDescriptionHelpFormatter` or a custom subclass of it.
++
+ .. method:: BaseCommand.add_arguments(parser)
+ 
+     Entry point to add parser arguments to handle command line arguments passed

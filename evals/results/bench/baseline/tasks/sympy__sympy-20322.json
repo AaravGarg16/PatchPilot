@@ -1,0 +1,42 @@
+{
+  "instance_id": "sympy__sympy-20322",
+  "source": "swebench",
+  "config": "baseline",
+  "status": "done",
+  "error": null,
+  "self_accepted": true,
+  "attempts": 1,
+  "retries": 0,
+  "tool_calls": 26,
+  "tool_errors": 0,
+  "llm_calls": 25,
+  "input_tokens": 380842,
+  "output_tokens": 16981,
+  "cache_read_tokens": 45733,
+  "cache_write_tokens": 5911,
+  "max_prompt_tokens": 23390,
+  "mean_prompt_tokens": 15233.7,
+  "cost_usd": 0.8521301,
+  "latency_seconds": 220.45,
+  "tests_before_passed": null,
+  "tests_after_passed": null,
+  "retrieved_files": [],
+  "planned_files": [],
+  "gold_files": [
+    "sympy/core/mul.py"
+  ],
+  "model_patch": "diff --git a/debug_ceiling.py b/debug_ceiling.py\nnew file mode 100644\nindex 0000000000..2a1ce6c909\n--- /dev/null\n+++ b/debug_ceiling.py\n@@ -0,0 +1,12 @@\n+import sympy\n+from sympy import Symbol, ceiling\n+\n+def test_debug():\n+    e1 = sympy.sympify('4*ceiling(x/4 - 3/4)', evaluate=False)\n+    print(\"e1:\", repr(e1), e1.args[1].args)\n+    print(\"e1 simplified:\", e1.simplify())\n+\n+    e2 = sympy.sympify('4*ceiling(x/4 - 3/4)', evaluate=True)\n+    print(\"e2:\", repr(e2), e2.args[1].args)\n+    print(\"e2 simplified:\", e2.simplify())\n+    assert False\ndiff --git a/sympy/simplify/tests/test_debug_ceiling.py b/sympy/simplify/tests/test_debug_ceiling.py\nnew file mode 100644\nindex 0000000000..f8285e91be\n--- /dev/null\n+++ b/sympy/simplify/tests/test_debug_ceiling.py\n@@ -0,0 +1,11 @@\n+import sympy\n+\n+def test_debug():\n+    e1 = sympy.sympify('4*ceiling(x/4 - 3/4)', evaluate=False)\n+    print(\"e1:\", repr(e1), e1.args[1].args)\n+    print(\"e1 simplified:\", e1.simplify())\n+\n+    e2 = sympy.sympify('4*ceiling(x/4 - 3/4)', evaluate=True)\n+    print(\"e2:\", repr(e2), e2.args[1].args)\n+    print(\"e2 simplified:\", e2.simplify())\n+    assert False\n",
+  "trace_id": "22ca5dc81a8d8e8fe6c101d505efd0ce",
+  "final_evaluation": null,
+  "rejections": [],
+  "grade": {
+    "grader": "swebench",
+    "resolved": false,
+    "patch_applied": true,
+    "fail_to_pass_passed": 0,
+    "fail_to_pass_total": 1,
+    "pass_to_pass_passed": 89,
+    "pass_to_pass_total": 89,
+    "error": null
+  }
+}

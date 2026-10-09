@@ -1,0 +1,99 @@
+{
+  "instance_id": "django__django-16910",
+  "source": "swebench",
+  "config": "full",
+  "status": "agent_error",
+  "error": "ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)",
+  "self_accepted": false,
+  "attempts": 2,
+  "retries": 1,
+  "tool_calls": 50,
+  "tool_errors": 0,
+  "llm_calls": 63,
+  "input_tokens": 2701973,
+  "output_tokens": 68878,
+  "cache_read_tokens": 1832911,
+  "cache_write_tokens": 115142,
+  "max_prompt_tokens": 71553,
+  "mean_prompt_tokens": 42888.5,
+  "cost_usd": 2.8510572,
+  "latency_seconds": 1150.07,
+  "tests_before_passed": null,
+  "tests_after_passed": false,
+  "retrieved_files": [
+    "django/db/models/query.py",
+    "docs/ref/models/querysets.txt",
+    "django/db/models/sql/compiler.py",
+    "django/db/models/sql/query.py",
+    "django/contrib/postgres/fields/array.py"
+  ],
+  "planned_files": [
+    "django/db/models/sql/query.py",
+    "django/db/models/sql/compiler.py",
+    "django/db/models/query_utils.py",
+    "tests/defer_regress/tests.py",
+    "tests/select_related_onetoone/tests.py",
+    "tests/select_related_onetoone/models.py"
+  ],
+  "gold_files": [
+    "django/db/models/sql/query.py"
+  ],
+  "model_patch": "diff --git a/django/db/models/sql/query.py b/django/db/models/sql/query.py\nindex 781dfd5499..3b4984a3b4 100644\n--- a/django/db/models/sql/query.py\n+++ b/django/db/models/sql/query.py\n@@ -779,11 +779,17 @@ class Query(BaseExpression):\n         # Only include fields mentioned in the mask.\n         for field_name, field_mask in mask.items():\n             field = opts.get_field(field_name)\n-            field_select_mask = select_mask.setdefault(field, {})\n+            # Retrieve the actual field associated with reverse relationships\n+            # as that's what is expected in the select mask.\n+            if field in opts.related_objects:\n+                field_key = field.field\n+            else:\n+                field_key = field\n+            field_select_mask = select_mask.setdefault(field_key, {})\n             if field_mask:\n                 if not field.is_relation:\n                     raise FieldError(next(iter(field_mask)))\n-                related_model = field.remote_field.model._meta.concrete_model\n+                related_model = field.related_model._meta.concrete_model\n                 self._get_only_select_mask(\n                     related_model._meta, field_mask, field_select_mask\n                 )\n",
+  "trace_id": "c082a4914ae5068f72a4096ab0b56d17",
+  "final_evaluation": {
+    "correct": false,
+    "requirements_met": false,
+    "tests_pass": false,
+    "problems": [
+      "The test suite run shows a failure: test_inheritance_deferred2 (select_related_onetoone.tests.ReverseSelectRelatedTestCase) now fails, expecting 0 queries but 2 were executed. This is a regression caused by the diff's change to use field.related_model instead of field.remote_field.model, which breaks caching behavior for select_related on reverse relations combined with model inheritance.",
+      "The fix must be revised so that it correctly restricts the select mask for reverse OneToOneField relations without breaking the select_related caching behavior for multi-table inheritance chains (as tested by test_inheritance_deferred2)."
+    ],
+    "recommended_action": "retry"
+  },
+  "rejections": [
+    {
+      "attempt": 1,
+      "tests_passed": true,
+      "tests_ran": true,
+      "tests_selected": [
+        "tests/select_related_onetoone/tests.py",
+        "tests/filtered_relation/tests.py",
+        "tests/defer_regress/tests.py",
+        "tests/queries/test_query.py",
+        "tests/queries/test_iterator.py",
+        "tests/model_utils/tests.py"
+      ],
+      "problems": [
+        "The diff is empty (\"no changes\"), meaning no actual code fix was made despite the executor hitting the step limit. The issue is not resolved in the repository since no modification to query.py/compiler.py was produced.",
+        "Although tests passed, this is likely because the test run did not include a new test that exercises the exact reverse-OneToOne only()+select_related() scenario from the issue failing against unmodified code, or the tests passed trivially since no code changed; the core bug fix described in the plan was never implemented."
+      ]
+    },
+    {
+      "attempt": 2,
+      "tests_passed": false,
+      "tests_ran": true,
+      "tests_selected": [
+        "tests/select_related_onetoone/tests.py",
+        "tests/filtered_relation/tests.py",
+        "tests/defer_regress/tests.py",
+        "tests/queries/test_query.py",
+        "tests/queries/test_iterator.py",
+        "tests/model_utils/tests.py"
+      ],
+      "problems": [
+        "The test suite run shows a failure: test_inheritance_deferred2 (select_related_onetoone.tests.ReverseSelectRelatedTestCase) now fails, expecting 0 queries but 2 were executed. This is a regression caused by the diff's change to use field.related_model instead of field.remote_field.model, which breaks caching behavior for select_related on reverse relations combined with model inheritance.",
+        "The fix must be revised so that it correctly restricts the select mask for reverse OneToOneField relations without breaking the select_related caching behavior for multi-table inheritance chains (as tested by test_inheritance_deferred2)."
+      ]
+    }
+  ],
+  "grade": {
+    "grader": "swebench",
+    "resolved": true,
+    "patch_applied": true,
+    "fail_to_pass_passed": 2,
+    "fail_to_pass_total": 2,
+    "pass_to_pass_passed": 36,
+    "pass_to_pass_total": 36,
+    "error": null
+  }
+}

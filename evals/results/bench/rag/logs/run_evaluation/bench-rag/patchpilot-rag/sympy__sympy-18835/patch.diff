@@ -1,0 +1,37 @@
+diff --git a/sympy/utilities/iterables.py b/sympy/utilities/iterables.py
+index d96e76263b..4d458bb094 100644
+--- a/sympy/utilities/iterables.py
++++ b/sympy/utilities/iterables.py
+@@ -2105,13 +2105,32 @@ def uniq(seq, result=None):
+     [1, 4, 5, 2]
+     >>> list(uniq([[1], [2, 1], [1]]))
+     [[1], [2, 1]]
++
++    An iterator is returned so the original list is not modified while
++    being traversed; however, if you change the original list while
++    using an iterator created from ``uniq``, a ``RuntimeError`` will be
++    raised, mimicking what happens with a dict or set when it is
++    modified while being iterated:
++
++    >>> from sympy.testing.pytest import raises
++    >>> f = list('THISTLE')
++    >>> def check(seq):
++    ...     for i in uniq(seq):
++    ...         seq.remove(i)
++    >>> raises(RuntimeError, lambda: check(f))
+     """
+     try:
+         seen = set()
+         result = result or []
++        try:
++            n = len(seq)
++        except TypeError:
++            n = None
+         for i, s in enumerate(seq):
+             if not (s in seen or seen.add(s)):
+                 yield s
++            if n is not None and len(seq) != n:
++                raise RuntimeError('sequence changed size during iteration')
+     except TypeError:
+         if s not in result:
+             yield s

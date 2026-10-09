@@ -1,0 +1,52 @@
+{
+  "instance_id": "django__django-12747",
+  "source": "swebench",
+  "config": "full",
+  "status": "agent_error",
+  "error": "OutputParserException: Invalid json output: \nFor troubleshooting, visit: https://docs.langchain.com/oss/python/langchain/errors/OUTPUT_PARSING_FAILURE ",
+  "self_accepted": false,
+  "attempts": 1,
+  "retries": 0,
+  "tool_calls": 23,
+  "tool_errors": 1,
+  "llm_calls": 26,
+  "input_tokens": 1007248,
+  "output_tokens": 30647,
+  "cache_read_tokens": 763226,
+  "cache_write_tokens": 43304,
+  "max_prompt_tokens": 47275,
+  "mean_prompt_tokens": 38740.3,
+  "cost_usd": 0.9688112,
+  "latency_seconds": 608.29,
+  "tests_before_passed": null,
+  "tests_after_passed": true,
+  "retrieved_files": [
+    "docs/ref/models/querysets.txt",
+    "django/db/models/deletion.py",
+    "django/db/migrations/autodetector.py",
+    "django/db/models/query.py",
+    "django/core/files/base.py"
+  ],
+  "planned_files": [
+    "django/db/models/deletion.py",
+    "django/db/models/query.py",
+    "tests/delete/tests.py"
+  ],
+  "gold_files": [
+    "django/db/models/deletion.py"
+  ],
+  "model_patch": "",
+  "trace_id": "3936d85961553188e78aa2c998666fc4",
+  "final_evaluation": null,
+  "rejections": [],
+  "grade": {
+    "grader": "swebench",
+    "resolved": false,
+    "patch_applied": false,
+    "fail_to_pass_passed": 0,
+    "fail_to_pass_total": 0,
+    "pass_to_pass_passed": 0,
+    "pass_to_pass_total": 0,
+    "error": "empty patch"
+  }
+}

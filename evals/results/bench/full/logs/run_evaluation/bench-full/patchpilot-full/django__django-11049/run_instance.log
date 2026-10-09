@@ -1,0 +1,69 @@
+2026-10-09 19:34:54,283 - INFO - Creating container for django__django-11049...
+2026-10-09 19:34:54,382 - INFO - Container for django__django-11049 created: 0fa915d437bcf21c643c874333ad2883c0059b3816b307baaed8442330dc5134
+2026-10-09 19:34:54,610 - INFO - Container for django__django-11049 started: 0fa915d437bcf21c643c874333ad2883c0059b3816b307baaed8442330dc5134
+2026-10-09 19:34:54,611 - INFO - Intermediate patch for django__django-11049 written to logs/run_evaluation/bench-full/patchpilot-full/django__django-11049/patch.diff, now applying to container...
+2026-10-09 19:34:54,929 - INFO - >>>>> Applied Patch:
+Checking patch django/db/models/fields/__init__.py...
+warning: django/db/models/fields/__init__.py has type 100755, expected 100644
+Applied patch django/db/models/fields/__init__.py cleanly.
+
+2026-10-09 19:34:56,244 - INFO - Git diff before:
+diff --git a/django/db/models/fields/__init__.py b/django/db/models/fields/__init__.py
+index f32ce64629..f1b3efbc98 100755
+--- a/django/db/models/fields/__init__.py
++++ b/django/db/models/fields/__init__.py
+@@ -1587,7 +1587,7 @@ class DurationField(Field):
+     empty_strings_allowed = False
+     default_error_messages = {
+         'invalid': _("'%(value)s' value has an invalid format. It must be in "
+-                     "[DD] [HH:[MM:]]ss[.uuuuuu] format.")
++                     "[DD] [[HH:]MM:]ss[.uuuuuu] format.")
+     }
+     description = _("Duration")
+ 
+@@ -1631,6 +1631,10 @@ class DurationField(Field):
+         return '' if val is None else duration_string(val)
+ 
+     def formfield(self, **kwargs):
++        kwargs.setdefault(
++            'help_text',
++            self.help_text or _('Enter a valid duration of the form: [DD] [[HH:]MM:]ss[.uuuuuu]'),
++        )
+         return super().formfield(**{
+             'form_class': forms.DurationField,
+             **kwargs,
+2026-10-09 19:34:56,245 - INFO - Eval script for django__django-11049 written to logs/run_evaluation/bench-full/patchpilot-full/django__django-11049/eval.sh; copying to container...
+2026-10-09 19:35:14,789 - INFO - Test runtime: 18.46 seconds
+2026-10-09 19:35:14,794 - INFO - Test output for django__django-11049 written to logs/run_evaluation/bench-full/patchpilot-full/django__django-11049/test_output.txt
+2026-10-09 19:35:14,903 - INFO - Git diff after:
+diff --git a/django/db/models/fields/__init__.py b/django/db/models/fields/__init__.py
+index f32ce64629..f1b3efbc98 100755
+--- a/django/db/models/fields/__init__.py
++++ b/django/db/models/fields/__init__.py
+@@ -1587,7 +1587,7 @@ class DurationField(Field):
+     empty_strings_allowed = False
+     default_error_messages = {
+         'invalid': _("'%(value)s' value has an invalid format. It must be in "
+-                     "[DD] [HH:[MM:]]ss[.uuuuuu] format.")
++                     "[DD] [[HH:]MM:]ss[.uuuuuu] format.")
+     }
+     description = _("Duration")
+ 
+@@ -1631,6 +1631,10 @@ class DurationField(Field):
+         return '' if val is None else duration_string(val)
+ 
+     def formfield(self, **kwargs):
++        kwargs.setdefault(
++            'help_text',
++            self.help_text or _('Enter a valid duration of the form: [DD] [[HH:]MM:]ss[.uuuuuu]'),
++        )
+         return super().formfield(**{
+             'form_class': forms.DurationField,
+             **kwargs,
+2026-10-09 19:35:14,903 - INFO - Grading answer for django__django-11049...
+2026-10-09 19:35:14,916 - INFO - report: {'django__django-11049': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': True, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': ['test_invalid_string (model_fields.test_durationfield.TestValidation)'], 'failure': []}, 'PASS_TO_PASS': {'success': ['test_dumping (model_fields.test_durationfield.TestSerialization)', 'test_loading (model_fields.test_durationfield.TestSerialization)', 'test_formfield (model_fields.test_durationfield.TestFormField)', 'test_exact (model_fields.test_durationfield.TestQuerying)', 'test_gt (model_fields.test_durationfield.TestQuerying)', 'test_create_empty (model_fields.test_durationfield.TestSaveLoad)', 'test_fractional_seconds (model_fields.test_durationfield.TestSaveLoad)', 'test_simple_roundtrip (model_fields.test_durationfield.TestSaveLoad)'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for django__django-11049: resolved: True
+2026-10-09 19:35:14,916 - INFO - Attempting to stop container sweb.eval.django__django-11049.bench-full...
+2026-10-09 19:35:30,379 - INFO - Container sweb.eval.django__django-11049.bench-full stopped successfully.
+2026-10-09 19:35:30,379 - INFO - Attempting to remove container sweb.eval.django__django-11049.bench-full...
+2026-10-09 19:35:30,525 - INFO - Container sweb.eval.django__django-11049.bench-full removed successfully.

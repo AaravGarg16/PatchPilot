@@ -1,0 +1,131 @@
+diff --git a/sympy/matrices/expressions/blockmatrix.py b/sympy/matrices/expressions/blockmatrix.py
+index 95302a05ca..bd55787d99 100644
+--- a/sympy/matrices/expressions/blockmatrix.py
++++ b/sympy/matrices/expressions/blockmatrix.py
+@@ -164,10 +164,33 @@ def structurally_equal(self, other):
+     def _blockmul(self, other):
+         if (isinstance(other, BlockMatrix) and
+                 self.colblocksizes == other.rowblocksizes):
+-            return BlockMatrix(self.blocks*other.blocks)
++            return BlockMatrix(self._blockmul_sanitize(
++                self.blocks*other.blocks, other))
+ 
+         return self * other
+ 
++    def _blockmul_sanitize(self, mat, other):
++        """Replace any scalar zero entries in a block-multiplication result
++        with properly shaped ZeroMatrix instances.
++
++        When all the summands of a block-matrix product entry are
++        ZeroMatrix objects, the underlying dense matrix multiplication may
++        combine them with the generic sympy ``Add``, which collapses to the
++        scalar ``S.Zero`` rather than a ``ZeroMatrix``.  Restoring the
++        ZeroMatrix type here keeps later block operations (which rely on
++        attributes like ``.rows``/``.cols``) working correctly.
++        """
++        rowsizes = self.rowblocksizes
++        colsizes = other.colblocksizes
++
++        def fix(i, j):
++            entry = mat[i, j]
++            if not isinstance(entry, MatrixExpr) and entry == 0:
++                return ZeroMatrix(rowsizes[i], colsizes[j])
++            return entry
++
++        return Matrix(mat.rows, mat.cols, fix)
++
+     def _blockadd(self, other):
+         if (isinstance(other, BlockMatrix)
+                 and self.structurally_equal(other)):
+diff --git a/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul.py b/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul.py
+new file mode 100644
+index 0000000000..473bfb59e4
+--- /dev/null
++++ b/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul.py
+@@ -0,0 +1,23 @@
++from sympy import MatrixSymbol, ZeroMatrix
++from sympy.matrices.expressions.blockmatrix import BlockMatrix, block_collapse
++
++
++def test_block_multiply_zero_type():
++    a = MatrixSymbol("a", 2, 2)
++    z = ZeroMatrix(2, 2)
++    b = BlockMatrix([[a, z], [z, z]])
++
++    bb = b._blockmul(b)
++    assert isinstance(bb.blocks[0, 1], ZeroMatrix)
++    assert isinstance(bb.blocks[1, 0], ZeroMatrix)
++    assert isinstance(bb.blocks[1, 1], ZeroMatrix)
++
++    # Should not raise
++    bbb = bb._blockmul(b)
++    assert bbb is not None
++
++    result = block_collapse(b * b * b)
++    assert result[0, 0] == a**3
++    assert result[0, 1] == 0
++    assert result[1, 0] == 0
++    assert result[1, 1] == 0
+diff --git a/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul2.py b/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul2.py
+new file mode 100644
+index 0000000000..c49d1aeb28
+--- /dev/null
++++ b/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul2.py
+@@ -0,0 +1,15 @@
++from sympy import MatrixSymbol, ZeroMatrix
++from sympy.matrices.expressions.blockmatrix import BlockMatrix, block_collapse
++
++
++def test_block_multiply_zero_type2():
++    a = MatrixSymbol("a", 2, 2)
++    z = ZeroMatrix(2, 2)
++    b = BlockMatrix([[a, z], [z, z]])
++
++    result = block_collapse(b * b * b)
++    print("RESULT00", repr(result[0, 0]))
++    print("RESULT01", repr(result[0, 1]))
++    print("RESULT10", repr(result[1, 0]))
++    print("RESULT11", repr(result[1, 1]))
++    assert False
+diff --git a/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul3.py b/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul3.py
+new file mode 100644
+index 0000000000..b83de47e8b
+--- /dev/null
++++ b/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul3.py
+@@ -0,0 +1,14 @@
++from sympy import MatrixSymbol, ZeroMatrix, expand
++from sympy.matrices.expressions.blockmatrix import BlockMatrix, block_collapse
++
++
++def test_block_multiply_zero_type3():
++    a = MatrixSymbol("a", 2, 2)
++    z = ZeroMatrix(2, 2)
++    b = BlockMatrix([[a, z], [z, z]])
++
++    result = block_collapse(b * b * b)
++    print("expand01", expand(result[0, 1]))
++    print("expand10", expand(result[1, 0]))
++    print("expand11", expand(result[1, 1]))
++    assert False
+diff --git a/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul4.py b/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul4.py
+new file mode 100644
+index 0000000000..5ac6adef4a
+--- /dev/null
++++ b/sympy/matrices/expressions/tests/test_blockmatrix_zero_mul4.py
+@@ -0,0 +1,16 @@
++from sympy import MatrixSymbol, ZeroMatrix, expand
++from sympy.matrices.expressions.blockmatrix import BlockMatrix, block_collapse
++
++
++def test_block_multiply_zero_type4():
++    a = MatrixSymbol("a", 2, 2)
++    z = ZeroMatrix(2, 2)
++    b = BlockMatrix([[a, z], [z, z]])
++
++    result = block_collapse(b * b * b)
++    print("00", expand(result[0, 0]))
++    print("01", expand(result[0, 1]))
++    print("02", expand(result[0, 2]))
++    print("20", expand(result[2, 0]))
++    print("22", expand(result[2, 2]))
++    assert False

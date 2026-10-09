@@ -1,0 +1,72 @@
+diff --git a/sympy/core/tests/test_zzz_debug_ceiling.py b/sympy/core/tests/test_zzz_debug_ceiling.py
+new file mode 100644
+index 0000000000..a0787b555c
+--- /dev/null
++++ b/sympy/core/tests/test_zzz_debug_ceiling.py
+@@ -0,0 +1,21 @@
++import sympy
++
++def test_debug():
++    e1 = sympy.sympify('4*ceiling(x/4 - 3/4)', evaluate=False)
++    e2 = sympy.sympify('4*ceiling(x/4 - 3/4)', evaluate=True)
++    print("e1:", repr(e1))
++    print("e2:", repr(e2))
++    print("e1.simplify():", e1.simplify())
++    print("e2.simplify():", e2.simplify())
++
++    from sympy.simplify.simplify import signsimp
++    print("signsimp(e1):", repr(signsimp(e1)))
++    print("signsimp(e2):", repr(signsimp(e2)))
++
++    arg1 = e1.args[1].args[0]
++    arg2 = e2.args[1].args[0]
++    print("arg1:", repr(arg1), arg1.args)
++    print("arg2:", repr(arg2), arg2.args)
++    print("arg1.could_extract_minus_sign():", arg1.could_extract_minus_sign())
++    print("arg2.could_extract_minus_sign():", arg2.could_extract_minus_sign())
++    assert False
+diff --git a/sympy/core/tests/test_zzz_debug_ceiling2.py b/sympy/core/tests/test_zzz_debug_ceiling2.py
+new file mode 100644
+index 0000000000..19315bbfa9
+--- /dev/null
++++ b/sympy/core/tests/test_zzz_debug_ceiling2.py
+@@ -0,0 +1,12 @@
++import sympy
++
++def test_debug():
++    e1 = sympy.sympify('4*ceiling(x/4 - 3/4)', evaluate=False)
++    e2 = sympy.sympify('4*ceiling(x/4 - 3/4)', evaluate=True)
++    print("e1:", repr(e1), e1.args)
++    print("e2:", repr(e2), e2.args)
++    print("str e1:", str(e1))
++    print("str e2:", str(e2))
++    print("e1.simplify():", e1.simplify())
++    print("e2.simplify():", e2.simplify())
++    assert False
+diff --git a/sympy/debug_test_ceiling.py b/sympy/debug_test_ceiling.py
+new file mode 100644
+index 0000000000..a0787b555c
+--- /dev/null
++++ b/sympy/debug_test_ceiling.py
+@@ -0,0 +1,21 @@
++import sympy
++
++def test_debug():
++    e1 = sympy.sympify('4*ceiling(x/4 - 3/4)', evaluate=False)
++    e2 = sympy.sympify('4*ceiling(x/4 - 3/4)', evaluate=True)
++    print("e1:", repr(e1))
++    print("e2:", repr(e2))
++    print("e1.simplify():", e1.simplify())
++    print("e2.simplify():", e2.simplify())
++
++    from sympy.simplify.simplify import signsimp
++    print("signsimp(e1):", repr(signsimp(e1)))
++    print("signsimp(e2):", repr(signsimp(e2)))
++
++    arg1 = e1.args[1].args[0]
++    arg2 = e2.args[1].args[0]
++    print("arg1:", repr(arg1), arg1.args)
++    print("arg2:", repr(arg2), arg2.args)
++    print("arg1.could_extract_minus_sign():", arg1.could_extract_minus_sign())
++    print("arg2.could_extract_minus_sign():", arg2.could_extract_minus_sign())
++    assert False

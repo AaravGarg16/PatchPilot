@@ -1,0 +1,117 @@
+2026-10-09 19:37:38,508 - INFO - Creating container for sympy__sympy-18835...
+2026-10-09 19:37:38,634 - INFO - Container for sympy__sympy-18835 created: cb1451c15a685dd7a15bc3f1c70c15d86671f34a1d9db44046330e951281bd7a
+2026-10-09 19:37:38,883 - INFO - Container for sympy__sympy-18835 started: cb1451c15a685dd7a15bc3f1c70c15d86671f34a1d9db44046330e951281bd7a
+2026-10-09 19:37:38,884 - INFO - Intermediate patch for sympy__sympy-18835 written to logs/run_evaluation/bench-planner/patchpilot-planner/sympy__sympy-18835/patch.diff, now applying to container...
+2026-10-09 19:37:39,067 - INFO - >>>>> Applied Patch:
+Checking patch sympy/utilities/iterables.py...
+warning: sympy/utilities/iterables.py has type 100755, expected 100644
+Applied patch sympy/utilities/iterables.py cleanly.
+
+2026-10-09 19:37:39,820 - INFO - Git diff before:
+diff --git a/sympy/utilities/iterables.py b/sympy/utilities/iterables.py
+index d96e76263b..3d0f2975e4 100755
+--- a/sympy/utilities/iterables.py
++++ b/sympy/utilities/iterables.py
+@@ -2105,17 +2105,43 @@ def uniq(seq, result=None):
+     [1, 4, 5, 2]
+     >>> list(uniq([[1], [2, 1], [1]]))
+     [[1], [2, 1]]
++
++    You can use ``uniq`` with a generator or some other iterable without
++    a known size, but if you pass something that has a ``__len__``
++    attribute (like a list) and that sequence is mutated while it is
++    being iterated over, a ``RuntimeError`` will be raised, just as
++    Python does when a ``dict`` or ``set`` changes size during
++    iteration:
++
++    >>> f = list('THISTLE')
++    >>> for i in uniq(f):
++    ...     f.remove(i)
++    ...
++    Traceback (most recent call last):
++    ...
++    RuntimeError: sequence changed size during iteration
+     """
+     try:
+         seen = set()
+         result = result or []
++        try:
++            size = len(seq)
++        except TypeError:
++            size = None
++
++        def check_size():
++            if size is not None and len(seq) != size:
++                raise RuntimeError('sequence changed size during iteration')
++
+         for i, s in enumerate(seq):
+             if not (s in seen or seen.add(s)):
+                 yield s
++                check_size()
+     except TypeError:
+         if s not in result:
+             yield s
+             result.append(s)
++            check_size()
+         if hasattr(seq, '__getitem__'):
+             for s in uniq(seq[i + 1:], result):
+                 yield s
+2026-10-09 19:37:39,820 - INFO - Eval script for sympy__sympy-18835 written to logs/run_evaluation/bench-planner/patchpilot-planner/sympy__sympy-18835/eval.sh; copying to container...
+2026-10-09 19:37:50,019 - INFO - Test runtime: 10.11 seconds
+2026-10-09 19:37:50,020 - INFO - Test output for sympy__sympy-18835 written to logs/run_evaluation/bench-planner/patchpilot-planner/sympy__sympy-18835/test_output.txt
+2026-10-09 19:37:50,117 - INFO - Git diff after:
+diff --git a/sympy/utilities/iterables.py b/sympy/utilities/iterables.py
+index d96e76263b..3d0f2975e4 100755
+--- a/sympy/utilities/iterables.py
++++ b/sympy/utilities/iterables.py
+@@ -2105,17 +2105,43 @@ def uniq(seq, result=None):
+     [1, 4, 5, 2]
+     >>> list(uniq([[1], [2, 1], [1]]))
+     [[1], [2, 1]]
++
++    You can use ``uniq`` with a generator or some other iterable without
++    a known size, but if you pass something that has a ``__len__``
++    attribute (like a list) and that sequence is mutated while it is
++    being iterated over, a ``RuntimeError`` will be raised, just as
++    Python does when a ``dict`` or ``set`` changes size during
++    iteration:
++
++    >>> f = list('THISTLE')
++    >>> for i in uniq(f):
++    ...     f.remove(i)
++    ...
++    Traceback (most recent call last):
++    ...
++    RuntimeError: sequence changed size during iteration
+     """
+     try:
+         seen = set()
+         result = result or []
++        try:
++            size = len(seq)
++        except TypeError:
++            size = None
++
++        def check_size():
++            if size is not None and len(seq) != size:
++                raise RuntimeError('sequence changed size during iteration')
++
+         for i, s in enumerate(seq):
+             if not (s in seen or seen.add(s)):
+                 yield s
++                check_size()
+     except TypeError:
+         if s not in result:
+             yield s
+             result.append(s)
++            check_size()
+         if hasattr(seq, '__getitem__'):
+             for s in uniq(seq[i + 1:], result):
+                 yield s
+2026-10-09 19:37:50,118 - INFO - Grading answer for sympy__sympy-18835...
+2026-10-09 19:37:50,121 - INFO - report: {'sympy__sympy-18835': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': True, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': ['test_uniq'], 'failure': []}, 'PASS_TO_PASS': {'success': ['test_is_palindromic', 'test_postorder_traversal', 'test_flatten', 'test_iproduct', 'test_group', 'test_subsets', 'test_variations', 'test_cartes', 'test_filter_symbols', 'test_numbered_symbols', 'test_sift', 'test_take', 'test_dict_merge', 'test_prefixes', 'test_postfixes', 'test_topological_sort', 'test_strongly_connected_components', 'test_connected_components', 'test_rotate', 'test_multiset_partitions', 'test_multiset_combinations', 'test_multiset_permutations', 'test_partitions', 'test_binary_partitions', 'test_bell_perm', 'test_involutions', 'test_derangements', 'test_necklaces', 'test_bracelets', 'test_generate_oriented_forest', 'test_unflatten', 'test_common_prefix_suffix', 'test_minlex', 'test_ordered', 'test_runs', 'test_reshape', 'test_kbins', 'test_has_dups', 'test__partition', 'test_ordered_partitions', 'test_rotations'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for sympy__sympy-18835: resolved: True
+2026-10-09 19:37:50,122 - INFO - Attempting to stop container sweb.eval.sympy__sympy-18835.bench-planner...
+2026-10-09 19:38:05,450 - INFO - Container sweb.eval.sympy__sympy-18835.bench-planner stopped successfully.
+2026-10-09 19:38:05,450 - INFO - Attempting to remove container sweb.eval.sympy__sympy-18835.bench-planner...
+2026-10-09 19:38:05,545 - INFO - Container sweb.eval.sympy__sympy-18835.bench-planner removed successfully.

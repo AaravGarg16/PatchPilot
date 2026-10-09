@@ -1,0 +1,48 @@
+{
+  "instance_id": "django__django-12747",
+  "source": "swebench",
+  "config": "rag",
+  "status": "done",
+  "error": null,
+  "self_accepted": true,
+  "attempts": 1,
+  "retries": 0,
+  "tool_calls": 18,
+  "tool_errors": 0,
+  "llm_calls": 19,
+  "input_tokens": 730408,
+  "output_tokens": 13966,
+  "cache_read_tokens": 511168,
+  "cache_write_tokens": 32265,
+  "max_prompt_tokens": 49024,
+  "mean_prompt_tokens": 38442.5,
+  "cost_usd": 0.6965061,
+  "latency_seconds": 1414.11,
+  "tests_before_passed": null,
+  "tests_after_passed": true,
+  "retrieved_files": [
+    "docs/ref/models/querysets.txt",
+    "django/db/models/query.py",
+    "django/core/files/base.py",
+    "docs/ref/contrib/contenttypes.txt",
+    "tests/delete/tests.py"
+  ],
+  "planned_files": [],
+  "gold_files": [
+    "django/db/models/deletion.py"
+  ],
+  "model_patch": "diff --git a/django/db/models/query.py b/django/db/models/query.py\nindex d9c9b0db04..30d1bbebb0 100644\n--- a/django/db/models/query.py\n+++ b/django/db/models/query.py\n@@ -735,6 +735,12 @@ class QuerySet:\n         collector.collect(del_query)\n         deleted, _rows_count = collector.delete()\n \n+        # Ensure the queryset's own model is always included in the\n+        # per-model counts, even if nothing was deleted, for a consistent\n+        # return value regardless of whether fast deletion was used.\n+        if deleted == 0:\n+            _rows_count.setdefault(self.model._meta.label, 0)\n+\n         # Clear the result cache, in case this QuerySet gets reused.\n         self._result_cache = None\n         return deleted, _rows_count\n",
+  "trace_id": "8eca521db891401f85b0adadb6605079",
+  "final_evaluation": null,
+  "rejections": [],
+  "grade": {
+    "grader": "swebench",
+    "resolved": false,
+    "patch_applied": true,
+    "fail_to_pass_passed": 0,
+    "fail_to_pass_total": 3,
+    "pass_to_pass_passed": 49,
+    "pass_to_pass_total": 49,
+    "error": null
+  }
+}
