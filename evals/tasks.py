@@ -69,7 +69,7 @@ def load_custom(path: Path) -> list[Task]:
     return tasks
 
 
-SUITE_FILES = {"smoke": "swebench_lite_smoke.json", "ablation8": "ablation8.json", "lite12": "lite12.json"}
+SUITE_FILES = {"smoke": "swebench_lite_smoke.json", "ablation8": "ablation8.json", "lite20": "lite20.json"}
 
 
 def suite_instance_ids(name: str) -> list[str]:
@@ -79,7 +79,7 @@ def suite_instance_ids(name: str) -> list[str]:
 
 
 def load_suite(name: str) -> list[Task]:
-    """smoke: the dev subset (harness building and tuning). ablation8, lite12: the seeded benchmark sets, never tuned
+    """smoke: the dev subset (harness building and tuning). ablation8, lite20: the seeded benchmark sets, never tuned
     on (see evals/task_sets.py). custom: our own tasks. lite: all 300 Lite tasks."""
     if name == "custom":
         return load_custom(EVALS_DIR / "tasks" / "custom.jsonl")

@@ -127,7 +127,7 @@ def build_report(run_dir: Path, suite: str | None = None) -> str:
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("run_dir", type=Path)
-    parser.add_argument("--suite", help="only this suite's tasks, e.g. ablation8 for the ablation, lite12 for the headline")
+    parser.add_argument("--suite", help="only this suite's tasks, e.g. ablation8 for the ablation, lite20 for the headline")
     args = parser.parse_args()
     report = build_report(args.run_dir, args.suite)
     (args.run_dir / (f"report-{args.suite}.md" if args.suite else "report.md")).write_text(report)

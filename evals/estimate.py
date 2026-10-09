@@ -3,7 +3,7 @@
     python -m evals.estimate                                  # assumed tokens per run (see ASSUMED)
     python -m evals.estimate --measured evals/results/bench   # averages from runs already done (any suite)
 
-Counts each (config, task) pair once: lite12 contains every ablation8 task, so `full` on those runs once and serves
+Counts each (config, task) pair once: lite20 contains every ablation8 task, so `full` on those runs once and serves
 the ablation, the headline and the context experiment.
 """
 import argparse
@@ -17,7 +17,7 @@ from observability.pricing import cost_usd
 # The benchmark: which configs run on which suite. Shared pairs are counted once.
 PLAN = [
     ("Component ablation", "ablation8", ["baseline", "rag", "planner", "full"]),
-    ("Headline (full agent)", "lite12", ["full"]),
+    ("Headline (full agent)", "lite20", ["full"]),
     ("Context engineering", "ablation8", ["full", "full-history"]),
 ]
 

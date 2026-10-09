@@ -126,6 +126,7 @@ def test_estimate_prices_caching_below_no_caching():
     rows = estimate("claude-sonnet-5")
     assert all(r["cached"] < r["standard"] for r in rows)
     measured = {"full": (100_000, 1_000, 3, (0.9, 0.05))}
-    cheap = estimate("claude-sonnet-5", measured=measured)[1]["cached"]  # headline: 4 new full runs
-    expected = 4 * cost_usd("claude-sonnet-5", 5_000, 1_000, cache_read_tokens=90_000, cache_write_tokens=5_000)
-    assert cheap == pytest.approx(expected)
+    headline = estimate("claude-sonnet-5", measured=measured)[1]  # only new `full` runs
+    expected = headline["new_runs"] * cost_usd("claude-sonnet-5", 5_000, 1_000, cache_read_tokens=90_000,
+                                                cache_write_tokens=5_000)
+    assert headline["cached"] == pytest.approx(expected)

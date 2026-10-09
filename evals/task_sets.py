@@ -25,7 +25,7 @@ SETS = {
     "ablation8": (8, ["django/django", "sympy/sympy"],
                   ("Component ablation and context experiment. Limited to the two largest Lite repos, whose indexes "
                    "are reused across tasks; within them, tasks are a seeded random draw.")),
-    "lite12": (12, None,
+    "lite20": (20, None,
                "Headline success rate. Repos in proportion to SWE-bench Lite; tasks a seeded random draw within each."),
 }
 

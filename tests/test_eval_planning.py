@@ -55,7 +55,7 @@ def test_memory_plan():
 
 def test_report_can_be_limited_to_one_suite(tmp_path):
     ablation = suite_instance_ids("ablation8")
-    extra = next(i for i in suite_instance_ids("lite12") if i not in ablation)
+    extra = next(i for i in suite_instance_ids("lite20") if i not in ablation)
     for instance_id in [*ablation, extra]:
         store.save(tmp_path / "full", TaskResult(
             instance_id=instance_id, source="swebench", config="full", status="done", llm_calls=1,
@@ -67,7 +67,7 @@ def test_report_can_be_limited_to_one_suite(tmp_path):
 def test_estimate_counts_shared_runs_once():
     rows = {r["experiment"]: r for r in estimate("claude-sonnet-5")}
     assert (rows["Component ablation"]["runs"], rows["Component ablation"]["new_runs"]) == (32, 32)
-    assert rows["Headline (full agent)"]["new_runs"] == 4  # 8 of lite12's 12 come from the ablation's full runs
+    assert rows["Headline (full agent)"]["new_runs"] == 12  # 8 of lite20's 20 come from the ablation's full runs
     assert rows["Context engineering"]["new_runs"] == 8  # full is reused; only full-history is new
     assert all(0 < r["cached"] < r["standard"] for r in rows.values())
 
