@@ -1,5 +1,6 @@
 import hashlib
 import re
+import threading
 from collections import defaultdict
 from pathlib import Path
 
@@ -113,6 +114,9 @@ class Retriever:
         self.store = store
         self.embedder = embedder
         self.progress = progress  # optional callable(done, total) while embedding uncached chunks
+        # One embedding job at a time across concurrent runs: bounds memory, and a second run indexing the same repo
+        # waits and then finds the first run's embeddings in the cache instead of computing them again.
+        self._embed_lock = threading.Lock()
 
     def index_paths(self, index_id: str, repo: Path, paths: list[str]) -> IndexReport:
         """(Re)index the given files. Files that no longer exist are just removed from the index."""
@@ -126,6 +130,10 @@ class Retriever:
         return report
 
     def _embed_with_cache(self, texts: list[str]) -> list[list[float]]:
+        with self._embed_lock:
+            return self._embed_with_cache_unlocked(texts)
+
+    def _embed_with_cache_unlocked(self, texts: list[str]) -> list[list[float]]:
         hashes = [hashlib.sha256(t.encode()).hexdigest() for t in texts]
         cached = self.store.cached_embeddings(self.embedder.model_name, hashes)
         missing = list({h: t for h, t in zip(hashes, texts, strict=True) if h not in cached}.items())

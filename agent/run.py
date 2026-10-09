@@ -25,6 +25,9 @@ class RunReport(BaseModel):
     llm_calls: int
     input_tokens: int
     output_tokens: int
+    # Of input_tokens: served from the prompt cache (billed at 0.1x) and written to it (1.25x).
+    cache_read_tokens: int = 0
+    cache_write_tokens: int = 0
     # Context utilization: the size of each prompt sent, in input tokens.
     max_prompt_tokens: int
     mean_prompt_tokens: float
@@ -95,6 +98,8 @@ async def run_issue(
             llm_calls=usage.calls,
             input_tokens=usage.input_tokens,
             output_tokens=usage.output_tokens,
+            cache_read_tokens=usage.cache_read_tokens,
+            cache_write_tokens=usage.cache_write_tokens,
             max_prompt_tokens=max(usage.prompt_tokens, default=0),
             mean_prompt_tokens=round(sum(usage.prompt_tokens) / len(usage.prompt_tokens), 1) if usage.prompt_tokens else 0.0,
             cost_usd=usage.cost_usd(),

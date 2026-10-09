@@ -31,6 +31,7 @@ class Summary(BaseModel):
     p95_latency: float
     retrieval_precision: float | None  # share of retrieved files that the gold patch touches
     retrieval_recall: float | None  # share of gold-patch files that were retrieved
+    cached_input_share: float | None  # share of input tokens served from the prompt cache
     mean_prompt_tokens: float  # context utilization: average prompt size per LLM call
     max_prompt_tokens: int
 
@@ -64,6 +65,7 @@ def summarize(config: str, results: list[TaskResult]) -> Summary:
     costs = [r.cost_usd for r in attempted]
     overlaps = [o for r in attempted if (o := _overlap(r.retrieved_files, r.gold_files))]
     n = len(attempted) or 1
+    total_input = sum(r.input_tokens for r in attempted)
 
     return Summary(
         config=config,
@@ -89,6 +91,7 @@ def summarize(config: str, results: list[TaskResult]) -> Summary:
         p95_latency=percentile([r.latency_seconds for r in attempted], 95),
         retrieval_precision=_mean([p for p, _ in overlaps]),
         retrieval_recall=_mean([r for _, r in overlaps]),
+        cached_input_share=(sum(r.cache_read_tokens for r in attempted) / total_input) if total_input else None,
         mean_prompt_tokens=_mean([r.mean_prompt_tokens for r in attempted if r.llm_calls]) or 0.0,
         max_prompt_tokens=max((r.max_prompt_tokens for r in attempted), default=0),
     )

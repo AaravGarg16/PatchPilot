@@ -10,6 +10,7 @@ from agent.context import (
     fit,
     render_failures,
 )
+from agent.llm import CACHE_CONTROL, supports_prompt_caching
 from agent.prompts import executor as prompts
 from agent.state import PatchPilotState
 from tools import git
@@ -52,6 +53,20 @@ def build_executor_message(state: PatchPilotState, current_diff: str) -> str:
     return "\n\n".join(parts)
 
 
+def cache_breakpoints(messages: list, cache_tail: bool) -> tuple[list, dict]:
+    """The messages to send, with prompt-cache markers, and the call kwargs that go with them.
+
+    Tools render first, then the system prompt, then the task message (issue, plan, retrieved code), and none of them
+    change during an attempt; one marker on the task message caches all three for every later turn. The growing tail
+    is cached with top-level automatic caching only when it is append-only: trimming an older tool output rewrites the
+    prefix from that point, and a write that is never read back costs 1.25x for nothing.
+    """
+    task = messages[1]
+    text = task.content if isinstance(task.content, str) else task.text
+    marked = task.model_copy(update={"content": [{"type": "text", "text": text, "cache_control": CACHE_CONTROL}]})
+    return [messages[0], marked, *messages[2:]], ({"cache_control": CACHE_CONTROL} if cache_tail else {})
+
+
 def build_retry_message(state: PatchPilotState, current_diff: str) -> str:
     """Full-history mode: the transcript already holds everything earlier; only the new failure is added."""
     latest = render_failures(state.failure_history[-1:], UNLIMITED_TOKENS)
@@ -70,6 +85,8 @@ async def implement(state: PatchPilotState, llm) -> dict:
     attempt = state.attempt_number + 1
     run_config = {"run_name": f"executor attempt {attempt}", "metadata": {"attempt": attempt}}
 
+    caching = supports_prompt_caching(llm)
+
     async with repo_tools(repo, state.sandbox_id, state.checks.model_dump_json()) as tools:
         by_name = {tool.name: tool for tool in tools}
         model = llm.bind_tools(tools)
@@ -82,7 +99,11 @@ async def implement(state: PatchPilotState, llm) -> dict:
         for _ in range(MAX_STEPS):
             if not full_history:
                 elided += compress_tool_outputs(messages, tool_budget)
-            reply: AIMessage = await model.ainvoke(messages, config=run_config)
+            call_messages, cache_kwargs = messages, {}
+            if caching:
+                # Full history only ever appends; dynamic mode stops caching the tail once it starts trimming.
+                call_messages, cache_kwargs = cache_breakpoints(messages, cache_tail=full_history or elided == 0)
+            reply: AIMessage = await model.ainvoke(call_messages, config=run_config, **cache_kwargs)
             messages.append(reply)
             if not reply.tool_calls:
                 summary = reply.text or summary

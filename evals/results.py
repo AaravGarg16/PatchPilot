@@ -32,6 +32,8 @@ class TaskResult(BaseModel):
     llm_calls: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
+    cache_read_tokens: int = 0  # part of input_tokens
+    cache_write_tokens: int = 0  # part of input_tokens
     max_prompt_tokens: int = 0
     mean_prompt_tokens: float = 0.0
     cost_usd: float | None = None

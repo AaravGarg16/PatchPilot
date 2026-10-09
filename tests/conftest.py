@@ -1,13 +1,16 @@
+import asyncio
 import os
 import subprocess
+import time
 
 import psycopg
 import pytest
 
+from agent.run import run_issue
 from retrieval.retriever import Retriever
 from retrieval.store import ChunkStore
-from sandbox.runner import BUILD_HINT, DEFAULT_IMAGE, Sandbox
-from tests.fakes import FIXTURE_REPO, HashEmbedder
+from sandbox.runner import BUILD_HINT, DEFAULT_IMAGE, Sandbox, image_exists
+from tests.fakes import FAKE_MODEL, FIXTURE_REPO, HashEmbedder
 from tools import git
 
 # A separate database so tests never touch the dev index. Created once with: createdb patchpilot_test
@@ -42,12 +45,21 @@ def retriever(test_db_url) -> Retriever:
     return Retriever(ChunkStore(test_db_url, embedder.dim), embedder)
 
 
+def _docker_ok(*args: str, attempts: int = 5) -> bool:
+    # Docker Desktop can fail its first calls after sitting idle; a failed probe would take down every Docker test.
+    for attempt in range(attempts):
+        if subprocess.run(["docker", *args], capture_output=True, check=False).returncode == 0:
+            return True
+        time.sleep(2 * (attempt + 1))
+    return False
+
+
 @pytest.fixture(scope="session")
 def sandbox_image() -> str:
     """Repository code only ever runs in the sandbox, so tests that run it need Docker and the image."""
-    if subprocess.run(["docker", "info"], capture_output=True, check=False).returncode != 0:
+    if not _docker_ok("info"):
         pytest.fail("Docker is not running. Start Docker Desktop (open -a Docker) and rerun.")
-    if subprocess.run(["docker", "image", "inspect", DEFAULT_IMAGE], capture_output=True, check=False).returncode != 0:
+    if not image_exists(DEFAULT_IMAGE):
         pytest.fail(f"Sandbox image {DEFAULT_IMAGE} is missing. Build it once with: {BUILD_HINT}")
     return DEFAULT_IMAGE
 
@@ -62,3 +74,20 @@ def sandbox(sandbox_image, repo, tmp_path):
     box = Sandbox.start(repo, tmp_path.name.replace("_", "-")[-40:])
     yield box
     box.destroy()
+
+
+@pytest.fixture
+def run_report(retriever, sandbox_image, tmp_path):
+    def _run(llm, on_update=None, **state):
+        return asyncio.run(run_issue(
+            FIXTURE_REPO, "Pagination skips the first page", llm=llm, model_name=FAKE_MODEL,
+            retriever=retriever, workspace_root=str(tmp_path), on_update=on_update, **state,
+        ))
+
+    return _run
+
+
+@pytest.fixture
+def run(run_report):
+    """Most tests only care about the final state."""
+    return lambda llm, **state: run_report(llm, **state).state

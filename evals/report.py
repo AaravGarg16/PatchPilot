@@ -9,6 +9,7 @@ from evals import results as store
 from evals.configs import EXPERIMENTS, LABELS
 from evals.grade import config_dirs
 from evals.metrics import Summary, summarize
+from evals.tasks import suite_instance_ids
 
 
 def _pct(value: float | None) -> str:
@@ -76,6 +77,7 @@ METRICS = [
     ("Tokens / task", lambda s: _tokens(s.tokens_per_task)),
     ("Tokens / successful task", lambda s: _tokens(s.tokens_per_successful_task)),
     ("Cost / task", lambda s: _money(s.cost_per_task)),
+    ("Input served from prompt cache", lambda s: _pct(s.cached_input_share)),
     ("P50 latency", lambda s: f"{s.p50_latency:.0f}s"),
     ("P95 latency", lambda s: f"{s.p95_latency:.0f}s"),
     ("Retrieval precision (files)", lambda s: _pct(s.retrieval_precision)),
@@ -94,9 +96,16 @@ def metrics_table(summaries: dict[str, Summary]) -> str:
     return "\n".join(lines)
 
 
-def build_report(run_dir: Path) -> str:
-    summaries = {d.name: summarize(d.name, store.load_all(d)) for d in config_dirs(run_dir)}
-    sections = [f"# PatchPilot eval: {Path(run_dir).name}"]
+def build_report(run_dir: Path, suite: str | None = None) -> str:
+    """Report on a results folder, optionally limited to one suite's tasks (runs for several suites share a folder)."""
+    ids = set(suite_instance_ids(suite)) if suite else None
+    summaries = {}
+    for d in config_dirs(run_dir):
+        results = [r for r in store.load_all(d) if ids is None or r.instance_id in ids]
+        if results:
+            summaries[d.name] = summarize(d.name, results)
+    title = f"{Path(run_dir).name}" + (f", {suite} tasks" if suite else "")
+    sections = [f"# PatchPilot eval: {title}"]
     ungraded = {c: s.tasks - s.graded for c, s in summaries.items() if s.tasks - s.graded}
     if ungraded:
         sections.append("Not graded yet (run `python -m evals.grade`): "
@@ -118,9 +127,10 @@ def build_report(run_dir: Path) -> str:
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("run_dir", type=Path)
+    parser.add_argument("--suite", help="only this suite's tasks, e.g. ablation8 for the ablation, lite12 for the headline")
     args = parser.parse_args()
-    report = build_report(args.run_dir)
-    (args.run_dir / "report.md").write_text(report)
+    report = build_report(args.run_dir, args.suite)
+    (args.run_dir / (f"report-{args.suite}.md" if args.suite else "report.md")).write_text(report)
     print(report)
 
 

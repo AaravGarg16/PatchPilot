@@ -69,13 +69,23 @@ def load_custom(path: Path) -> list[Task]:
     return tasks
 
 
+SUITE_FILES = {"smoke": "swebench_lite_smoke.json", "ablation8": "ablation8.json", "lite12": "lite12.json"}
+
+
+def suite_instance_ids(name: str) -> list[str]:
+    if name not in SUITE_FILES:
+        raise ValueError(f"unknown suite {name!r}; use {', '.join([*SUITE_FILES, 'custom', 'lite'])}")
+    return json.loads((EVALS_DIR / "tasks" / SUITE_FILES[name]).read_text())["instance_ids"]
+
+
 def load_suite(name: str) -> list[Task]:
-    """smoke: the curated SWE-bench Lite subset. custom: our own tasks. lite: all 300 Lite tasks."""
+    """smoke: the dev subset (harness building and tuning). ablation8, lite12: the seeded benchmark sets, never tuned
+    on (see evals/task_sets.py). custom: our own tasks. lite: all 300 Lite tasks."""
     if name == "custom":
         return load_custom(EVALS_DIR / "tasks" / "custom.jsonl")
-    if name == "smoke":
-        spec = json.loads((EVALS_DIR / "tasks" / "swebench_lite_smoke.json").read_text())
-        return load_swebench(spec["instance_ids"], spec["dataset"])
     if name == "lite":
         return load_swebench(None)
-    raise ValueError(f"unknown suite {name!r}; use smoke, custom or lite")
+    spec = json.loads((EVALS_DIR / "tasks" / SUITE_FILES.get(name, "")).read_text()) if name in SUITE_FILES else None
+    if spec is None:
+        suite_instance_ids(name)  # raises with the list of known suites
+    return load_swebench(spec["instance_ids"], spec["dataset"])

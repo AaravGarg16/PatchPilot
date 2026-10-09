@@ -9,6 +9,7 @@ Results land in evals/results/<name>/<config>/. Reruns resume: finished tasks ar
 import argparse
 import asyncio
 import json
+import os
 import shutil
 import tempfile
 import time
@@ -18,7 +19,12 @@ from pathlib import Path
 from agent.run import run_issue
 from evals import results as store
 from evals.configs import CONFIGS, EXPERIMENTS
-from evals.environments import SWEBENCH_PLATFORM, PreparedTask, prepare
+from evals.environments import (
+    DEFAULT_SANDBOX_MEMORY,
+    SWEBENCH_PLATFORM,
+    PreparedTask,
+    prepare,
+)
 from evals.results import Grade, TaskResult
 from evals.tasks import EVALS_DIR, Task, load_suite
 from sandbox.runner import Sandbox, destroy_run
@@ -43,6 +49,8 @@ def _result_from_report(task: Task, config: str, report) -> TaskResult:
         llm_calls=report.llm_calls,
         input_tokens=report.input_tokens,
         output_tokens=report.output_tokens,
+        cache_read_tokens=report.cache_read_tokens,
+        cache_write_tokens=report.cache_write_tokens,
         max_prompt_tokens=report.max_prompt_tokens,
         mean_prompt_tokens=report.mean_prompt_tokens,
         cost_usd=report.cost_usd,
@@ -69,10 +77,11 @@ def _result_from_report(task: Task, config: str, report) -> TaskResult:
 
 async def run_task(
     task: Task, config: str, *, llm, model_name: str, retriever, work_dir: Path, max_attempts: int,
-    platform: str | None = SWEBENCH_PLATFORM,
+    platform: str | None = SWEBENCH_PLATFORM, sandbox_memory: str = DEFAULT_SANDBOX_MEMORY,
 ) -> TaskResult:
     try:
-        prepared = prepare(task, work_dir, platform)
+        # Image pulls and workspace copies block for minutes; a thread keeps the other runs moving.
+        prepared = await asyncio.to_thread(prepare, task, work_dir, platform, sandbox_memory)
     except Exception as e:  # noqa: BLE001 - any setup failure is this task's env_error, never the whole eval's
         return TaskResult(instance_id=task.instance_id, source=task.source, config=config, status="env_error",
                           error=f"{type(e).__name__}: {e}", gold_files=task.gold_files)
@@ -106,37 +115,81 @@ async def run_suite(
     max_cost: float | None = None,
     keep_workspaces: bool = False,
     platform: str | None = SWEBENCH_PLATFORM,
+    parallel: int = 1,
+    sandbox_memory: str = DEFAULT_SANDBOX_MEMORY,
     log=print,
 ) -> list[TaskResult]:
-    """Configs run one after another, so a budget stop leaves complete configs rather than a bit of each."""
+    """Run every (config, task) pair not already done, up to `parallel` at a time.
+
+    Pairs start in config order, so a budget stop leaves the earlier configs complete. The budget is checked before
+    each run starts; runs already in flight finish, so the total can overshoot by up to parallel - 1 runs.
+    """
     spent = 0.0
     done: list[TaskResult] = []
-    for config in configs:
+    stopped = False
+    gate = asyncio.Semaphore(max(parallel, 1))
+    write_lock = asyncio.Lock()
+
+    async def one(config: str, task: Task) -> None:
+        nonlocal spent, stopped
         config_dir = out_dir / config
-        for task in tasks:
-            if store.task_path(config_dir, task.instance_id).exists():
-                log(f"[{config}] {task.instance_id}: already done, skipping")
-                continue
+        async with gate:
             if max_cost is not None and spent >= max_cost:
-                log(f"Stopping: ${spent:.2f} spent reaches the --max-cost limit of ${max_cost:.2f}.")
-                return done
+                if not stopped:
+                    log(f"Stopping: ${spent:.2f} spent reaches the --max-cost limit of ${max_cost:.2f}.")
+                stopped = True
+                return
             work_dir = Path(tempfile.mkdtemp(prefix="patchpilot-eval-"))
             try:
                 result = await run_task(task, config, llm=llm, model_name=model_name, retriever=retriever,
-                                        work_dir=work_dir, max_attempts=max_attempts, platform=platform)
+                                        work_dir=work_dir, max_attempts=max_attempts, platform=platform,
+                                        sandbox_memory=sandbox_memory)
             finally:
                 if not keep_workspaces:
-                    shutil.rmtree(work_dir, ignore_errors=True)
-            store.save(config_dir, result)
-            store.write_predictions(config_dir)
-            spent += result.cost_usd or 0.0
-            done.append(result)
+                    await asyncio.to_thread(shutil.rmtree, work_dir, True)
+            async with write_lock:
+                store.save(config_dir, result)
+                store.write_predictions(config_dir)
+                spent += result.cost_usd or 0.0
+                done.append(result)
             log(
                 f"[{config}] {task.instance_id}: {result.status}, accepted={result.self_accepted}, "
                 f"attempts={result.attempts}, tokens={result.total_tokens}, cost=${result.cost_usd or 0:.4f}, "
                 f"{result.latency_seconds:.0f}s" + (f" ({result.error})" if result.error else "")
             )
+
+    jobs = []
+    for config in configs:
+        for task in tasks:
+            if store.task_path(out_dir / config, task.instance_id).exists():
+                log(f"[{config}] {task.instance_id}: already done, skipping")
+            else:
+                jobs.append(one(config, task))
+    await asyncio.gather(*jobs)
     return done
+
+
+def _gigabytes(size: str) -> float:
+    units = {"k": 1 / 1024**2, "m": 1 / 1024, "g": 1.0}
+    return float(size[:-1]) * units[size[-1].lower()] if size[-1].lower() in units else float(size) / 1024**3
+
+
+# Main-process memory: Python, the agent, and the embedding model. Indexing a large repo on CPU peaked at ~4.7 GB
+# with batch 16; on a GPU the model's working memory moves to the card.
+MAIN_PROCESS_GB = {"cpu": 4.5, "cuda": 2.0}
+
+
+def memory_plan(parallel: int, sandbox_memory: str, device: str, host_gb: float | None = None) -> tuple[float, float, str]:
+    """(planned peak GB, host RAM GB, verdict). Sandboxes are capped by Docker, so their caps are the worst case."""
+    if host_gb is None:
+        host_gb = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / 1024**3
+    peak = parallel * _gigabytes(sandbox_memory) + MAIN_PROCESS_GB.get(device, MAIN_PROCESS_GB["cpu"])
+    if peak <= host_gb:
+        verdict = "fits in RAM"
+    else:
+        verdict = (f"exceeds RAM by {peak - host_gb:.1f} GB in the worst case (all sandboxes at their cap while "
+                   f"indexing); lower --parallel or --sandbox-memory if runs get slow or killed")
+    return peak, host_gb, verdict
 
 
 def dry_run(tasks: list[Task], out_dir: Path, retriever=None, log=print) -> list[dict]:
@@ -230,6 +283,11 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="set up environments and check test runners; no LLM")
     parser.add_argument("--skip-index", action="store_true", help="dry run: skip indexing (and cache warming)")
     parser.add_argument("--keep-workspaces", action="store_true")
+    parser.add_argument("--parallel", type=int, default=2, help="agent runs at once (default 2)")
+    parser.add_argument("--sandbox-memory", default=DEFAULT_SANDBOX_MEMORY,
+                        help=f"memory cap per SWE-bench sandbox (default {DEFAULT_SANDBOX_MEMORY})")
+    parser.add_argument("--batch", action="store_true",
+                        help="send LLM calls through the Anthropic Batch API: half the price, minutes of latency per call")
     parser.add_argument("--yes", action="store_true", help="do not ask for confirmation before spending")
     args = parser.parse_args()
 
@@ -264,18 +322,25 @@ def main():
     from agent.llm import get_chat_model, load_llm_settings
 
     settings = load_llm_settings()
+    pending = [(c, t) for c in configs for t in tasks if not store.task_path(out_dir / c, t.instance_id).exists()]
     runs = len(tasks) * len(configs)
-    print(f"About to run {len(tasks)} task(s) x {len(configs)} config(s) = {runs} agent run(s) "
-          f"with {settings.provider}/{settings.model}, up to {args.max_attempts} attempts each.")
+    print(f"About to run {len(pending)} of {runs} agent run(s) ({len(tasks)} task(s) x {len(configs)} config(s); "
+          f"the rest are already done) with {settings.provider}/{settings.model}, up to {args.max_attempts} attempts each.")
     print(f"Configs: {', '.join(configs)}. Results: {out_dir}")
+    print(f"LLM calls: {'Batch API (half price; each call waits for its batch, usually minutes)' if args.batch else 'standard API'}")
     print(f"Spending cap: {'$' + format(args.max_cost, '.2f') if args.max_cost is not None else 'none (--max-cost)'}")
+    device = (os.getenv("EMBEDDING_DEVICE") or "cpu").strip().lower()
+    peak, host, verdict = memory_plan(args.parallel, args.sandbox_memory, device)
+    print(f"Memory: {args.parallel} parallel x {args.sandbox_memory} sandboxes + main process ({device} embeddings) "
+          f"= up to {peak:.1f} GB of {host:.1f} GB RAM: {verdict}")
     if not args.yes and input("Proceed? [y/N] ").strip().lower() != "y":
         print("Cancelled.")
         return
 
     results = asyncio.run(run_suite(
-        tasks, configs, out_dir, llm=get_chat_model(settings), model_name=settings.model, retriever=make_retriever(),
-        max_attempts=args.max_attempts, max_cost=args.max_cost, keep_workspaces=args.keep_workspaces,
+        tasks, configs, out_dir, llm=get_chat_model(settings, batch=args.batch), model_name=settings.model,
+        retriever=make_retriever(), max_attempts=args.max_attempts, max_cost=args.max_cost,
+        keep_workspaces=args.keep_workspaces, parallel=args.parallel, sandbox_memory=args.sandbox_memory,
     ))
     spent = sum(r.cost_usd or 0 for r in results)
     print(f"\nFinished {len(results)} run(s), ${spent:.2f}. Next: python -m evals.grade {out_dir}")

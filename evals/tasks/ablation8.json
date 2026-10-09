@@ -1,0 +1,38 @@
+{
+  "dataset": "SWE-bench/SWE-bench_Lite",
+  "seed": 20261007,
+  "purpose": "Component ablation and context experiment. Limited to the two largest Lite repos, whose indexes are reused across tasks; within them, tasks are a seeded random draw.",
+  "selection": "- Development tasks (the smoke suite, used to build and tune the harness) are excluded from every set.\n- Each repo's remaining tasks are shuffled once with a seed derived from SEED and the repo name. A set that needs k\n  tasks from a repo takes the first k in that order. Sets that sample the same repo therefore share tasks by\n  construction, and no draw depends on which other repos a set includes.\n- How many tasks each repo gets is proportional to its share of the pool the set samples from (largest remainder).",
+  "excluded_dev_tasks": [
+    "django__django-11179",
+    "django__django-13230",
+    "django__django-13447",
+    "django__django-15814",
+    "mwaskom__seaborn-3190",
+    "pallets__flask-4992",
+    "psf__requests-2317",
+    "pydata__xarray-4094",
+    "pylint-dev__pylint-7080",
+    "pytest-dev__pytest-11143",
+    "pytest-dev__pytest-6116",
+    "sphinx-doc__sphinx-8595",
+    "sympy__sympy-13480",
+    "sympy__sympy-13647",
+    "sympy__sympy-14774"
+  ],
+  "allocation": {
+    "django/django": 5,
+    "sympy/sympy": 3
+  },
+  "instance_ids": [
+    "django__django-12747",
+    "django__django-13401",
+    "django__django-16910",
+    "django__django-11049",
+    "django__django-15781",
+    "sympy__sympy-17630",
+    "sympy__sympy-20322",
+    "sympy__sympy-18835"
+  ],
+  "dataset_fingerprint": "c14808910a89f265"
+}

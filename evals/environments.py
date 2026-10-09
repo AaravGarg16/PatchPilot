@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from agent.state import CheckSettings
 from evals.tasks import Task
-from sandbox.runner import SandboxConfig
+from sandbox.runner import SandboxConfig, image_exists
 from sandbox.security import SandboxLimits
 from tools import git
 from tools.testing import TestCommand
@@ -49,7 +49,7 @@ def _docker(*args: str, timeout: float = 3600) -> subprocess.CompletedProcess:
 
 
 def image_present(image: str) -> bool:
-    return _docker("image", "inspect", image, timeout=60).returncode == 0
+    return image_exists(image)
 
 
 def _platform_flag(platform: str | None) -> list[str]:
@@ -122,7 +122,13 @@ def freeze_baseline(repo: Path, expected_commit: str | None) -> None:
             f.write("".join(f"/{path}\n" for path in untracked))
 
 
-def swebench_sandbox(image: str, platform: str | None = SWEBENCH_PLATFORM) -> SandboxConfig:
+# Per-sandbox memory cap for eval runs. Django and sympy test runs stay well under it; with --parallel 2 two
+# sandboxes plus the main process fit an 8 GB machine. The container's /tmp counts against this too.
+DEFAULT_SANDBOX_MEMORY = "2g"
+
+
+def swebench_sandbox(image: str, platform: str | None = SWEBENCH_PLATFORM,
+                     memory: str = DEFAULT_SANDBOX_MEMORY) -> SandboxConfig:
     return SandboxConfig(
         image=image,
         platform=platform,
@@ -132,11 +138,12 @@ def swebench_sandbox(image: str, platform: str | None = SWEBENCH_PLATFORM) -> Sa
         # Emulated x86 is several times slower; real test suites need more room than the fixture.
         command_timeout=900,
         lifetime_seconds=4 * 3600,
-        limits=SandboxLimits(cpus=2.0, memory="4g", tmp_size="1g"),
+        limits=SandboxLimits(cpus=2.0, memory=memory, tmp_size="512m"),
     )
 
 
-def prepare(task: Task, work_dir: Path, platform: str | None = SWEBENCH_PLATFORM) -> PreparedTask:
+def prepare(task: Task, work_dir: Path, platform: str | None = SWEBENCH_PLATFORM,
+            sandbox_memory: str = DEFAULT_SANDBOX_MEMORY) -> PreparedTask:
     if task.source == "custom":
         return PreparedTask(task=task, sandbox=SandboxConfig(), checks=CheckSettings())
 
@@ -155,5 +162,5 @@ def prepare(task: Task, work_dir: Path, platform: str | None = SWEBENCH_PLATFORM
         # Old repos fail most of today's lint rules before any edit; the signal would be noise.
         lint=False,
     )
-    return PreparedTask(task=task, sandbox=swebench_sandbox(task.image, platform), checks=checks,
+    return PreparedTask(task=task, sandbox=swebench_sandbox(task.image, platform, sandbox_memory), checks=checks,
                         workspace=str(workspace))

@@ -1,14 +1,11 @@
-import asyncio
 import subprocess
 
 import pytest
 
 from agent import executor
-from agent.run import run_issue
 from agent.schemas import Evaluation, Plan
 from evals.configs import CONFIGS
 from tests.fakes import (
-    FAKE_MODEL,
     FAKE_USAGE,
     FIX_PAGINATE,
     FIX_TOTAL_PAGES,
@@ -34,23 +31,6 @@ def retry(*problems: str, tests_pass: bool = False) -> Evaluation:
     return Evaluation(
         correct=False, requirements_met=False, tests_pass=tests_pass, problems=list(problems), recommended_action="retry"
     )
-
-
-@pytest.fixture
-def run_report(retriever, sandbox_image, tmp_path):
-    def _run(llm, on_update=None, **state):
-        return asyncio.run(run_issue(
-            FIXTURE_REPO, "Pagination skips the first page", llm=llm, model_name=FAKE_MODEL,
-            retriever=retriever, workspace_root=str(tmp_path), on_update=on_update, **state,
-        ))
-
-    return _run
-
-
-@pytest.fixture
-def run(run_report):
-    """Most tests only care about the final state."""
-    return lambda llm, **state: run_report(llm, **state).state
 
 
 def test_fixes_bug_after_evaluator_feedback(run):

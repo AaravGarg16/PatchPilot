@@ -1,5 +1,6 @@
 import shlex
 import subprocess
+import time
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -42,6 +43,20 @@ def _docker(*args: str, timeout: float = 60) -> subprocess.CompletedProcess:
     return subprocess.run(["docker", *args], capture_output=True, text=True, timeout=timeout, check=False)
 
 
+def image_exists(image: str, attempts: int = 3) -> bool:
+    """Whether the image is present locally.
+
+    Retried: Docker Desktop's containerd image store intermittently answers "No such image" for a tagged image that
+    is there, which would otherwise turn into a false environment error or an unneeded multi-GB pull.
+    """
+    for attempt in range(attempts):
+        if _docker("image", "inspect", "--format", "{{.Id}}", image).returncode == 0:
+            return True
+        if attempt < attempts - 1:
+            time.sleep(1 + attempt)
+    return False
+
+
 def container_name(run_id: str) -> str:
     return f"patchpilot-{run_id}"
 
@@ -56,7 +71,7 @@ class Sandbox:
     @classmethod
     def start(cls, repo: Path, run_id: str, config: SandboxConfig | None = None) -> "Sandbox":
         config = config or SandboxConfig()
-        if _docker("image", "inspect", config.image).returncode != 0:
+        if not image_exists(config.image):
             raise RuntimeError(f"sandbox image {config.image} not found; build it with: {BUILD_HINT}")
         needs_network = config.install_dependencies and any((Path(repo) / f).is_file() for f in REQUIREMENT_FILES)
         name = container_name(run_id)

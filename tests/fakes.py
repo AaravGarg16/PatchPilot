@@ -76,12 +76,15 @@ class FakeLLM:
     Tool calling: one flat queue of AIMessages; an attempt ends at the first message without tool calls.
     """
 
-    def __init__(self, structured: dict, executor_turns: list[AIMessage] | None = None):
+    def __init__(self, structured: dict, executor_turns: list[AIMessage] | None = None, caching: bool = False):
         self.structured = {schema: list(queue) for schema, queue in structured.items()}
         self.executor_turns = list(executor_turns or [])
         self.structured_calls: list[tuple[type, list]] = []
         self.executor_calls: list[list] = []
+        self.executor_kwargs: list[dict] = []
         self.bound_tool_names: list[str] = []
+        # Opt in to prompt-cache markers, as a real ChatAnthropic would.
+        self.supports_prompt_caching = caching
 
     def with_structured_output(self, schema, **kwargs):
         return _Structured(self, schema)
@@ -94,8 +97,8 @@ class FakeLLM:
         return [messages[-1][1] for s, messages in self.structured_calls if s is schema]
 
     def executor_task_prompts(self) -> list[str]:
-        """The task message that opened each executor attempt."""
-        return [msgs[1].content for msgs in self.executor_calls if len(msgs) == 2]
+        """The task message that opened each executor attempt (as text, whether or not it carries a cache marker)."""
+        return [msgs[1].text for msgs in self.executor_calls if len(msgs) == 2]
 
 
 class _Structured:
@@ -114,8 +117,10 @@ class _ToolCaller:
     def __init__(self, llm: FakeLLM):
         self.llm = llm
 
-    async def ainvoke(self, messages, config=None):
-        self.llm.executor_calls.append(list(messages))
+    async def ainvoke(self, messages, config=None, **kwargs):
+        # A snapshot: trimming later edits these message objects in place, which would rewrite the record.
+        self.llm.executor_calls.append([m.model_copy(deep=True) for m in messages])
+        self.llm.executor_kwargs.append(kwargs)
         if not self.llm.executor_turns:
             raise AssertionError("executor asked for more turns than the test scripted")
         return await _aemit(self.llm.executor_turns.pop(0), messages, config)
