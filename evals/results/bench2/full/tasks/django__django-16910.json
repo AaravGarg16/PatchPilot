@@ -1,0 +1,96 @@
+{
+  "instance_id": "django__django-16910",
+  "source": "swebench",
+  "config": "full",
+  "status": "agent_error",
+  "error": "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'You have reached your specified API usage limits. You will regain access on 2026-11-01 at 00:00 UTC.'}, 'request_id': 'req_011CfsZcyhfAy3QPojC3q2T8'} (raised inside a task group)",
+  "self_accepted": false,
+  "attempts": 2,
+  "retries": 1,
+  "tool_calls": 50,
+  "tool_errors": 0,
+  "llm_calls": 59,
+  "input_tokens": 2593703,
+  "output_tokens": 65366,
+  "cache_read_tokens": 1701262,
+  "cache_write_tokens": 113774,
+  "max_prompt_tokens": 71733,
+  "mean_prompt_tokens": 43961.1,
+  "cost_usd": 2.8356814,
+  "latency_seconds": 956.94,
+  "tests_before_passed": null,
+  "tests_after_passed": true,
+  "retrieved_files": [
+    "docs/ref/models/querysets.txt",
+    "django/db/models/query.py",
+    "django/db/models/sql/compiler.py",
+    "django/db/models/base.py",
+    "tests/gis_tests/relatedapp/tests.py"
+  ],
+  "planned_files": [
+    "django/db/models/sql/compiler.py",
+    "django/db/models/sql/query.py",
+    "django/db/models/query_utils.py",
+    "tests/defer_regress/tests.py",
+    "tests/defer_regress/models.py",
+    "tests/select_related_onetoone/tests.py",
+    "tests/select_related_onetoone/models.py"
+  ],
+  "gold_files": [
+    "django/db/models/sql/query.py"
+  ],
+  "model_patch": "",
+  "trace_id": "e5d9f9ca2834af29fb33b9df607858b1",
+  "degradations": [],
+  "final_evaluation": {
+    "correct": true,
+    "requirements_met": true,
+    "tests_pass": true,
+    "problems": [],
+    "recommended_action": "finish"
+  },
+  "rejections": [
+    {
+      "attempt": 1,
+      "tests_passed": false,
+      "tests_ran": true,
+      "tests_selected": [
+        "tests/filtered_relation/tests.py",
+        "tests/defer_regress/tests.py",
+        "tests/select_related_onetoone/tests.py",
+        "tests/queries/test_iterator.py",
+        "tests/queries/test_query.py",
+        "tests/model_utils/tests.py"
+      ],
+      "problems": [
+        "The diff breaks multi-table inheritance deferred select_related behavior: test_inheritance_deferred2 in tests/select_related_onetoone/tests.py now fails because the only()/select_related() combination triggers an unexpected extra query instead of using cached parent-link data, indicating the mask key change (field.field if not field.concrete else field) incorrectly affects parent-link (concrete OneToOneField) relations used for multi-table inheritance.",
+        "The fix needs to distinguish reverse one-to-one relations (ForeignObjectRel) from concrete parent-link fields so that only the actual reverse relation case uses field.field as the mask key, while forward/parent-link fields continue to use the field itself as before.",
+        "Re-run the full select_related_onetoone test suite after adjusting the fix to confirm test_inheritance_deferred2 and all other tests pass."
+      ]
+    },
+    {
+      "attempt": 2,
+      "tests_passed": true,
+      "tests_ran": true,
+      "tests_selected": [
+        "tests/filtered_relation/tests.py",
+        "tests/defer_regress/tests.py",
+        "tests/select_related_onetoone/tests.py",
+        "tests/queries/test_iterator.py",
+        "tests/queries/test_query.py",
+        "tests/model_utils/tests.py"
+      ],
+      "problems": []
+    }
+  ],
+  "grade": {
+    "grader": "swebench",
+    "resolved": false,
+    "patch_applied": false,
+    "fail_to_pass_passed": 0,
+    "fail_to_pass_total": 0,
+    "pass_to_pass_passed": 0,
+    "pass_to_pass_total": 0,
+    "error": "empty patch"
+  }
+}

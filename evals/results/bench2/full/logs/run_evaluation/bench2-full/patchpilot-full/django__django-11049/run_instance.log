@@ -1,0 +1,78 @@
+2026-10-09 23:55:37,527 - INFO - Creating container for django__django-11049...
+2026-10-09 23:55:37,652 - INFO - Container for django__django-11049 created: c097579a74d8b89bb432fb8ad294e3b6857aea0f31b2290322e582f94f1dd442
+2026-10-09 23:55:37,913 - INFO - Container for django__django-11049 started: c097579a74d8b89bb432fb8ad294e3b6857aea0f31b2290322e582f94f1dd442
+2026-10-09 23:55:37,914 - INFO - Intermediate patch for django__django-11049 written to logs/run_evaluation/bench2-full/patchpilot-full/django__django-11049/patch.diff, now applying to container...
+2026-10-09 23:55:38,240 - INFO - >>>>> Applied Patch:
+Checking patch django/db/models/fields/__init__.py...
+warning: django/db/models/fields/__init__.py has type 100755, expected 100644
+Checking patch django/forms/fields.py...
+warning: django/forms/fields.py has type 100755, expected 100644
+Applied patch django/db/models/fields/__init__.py cleanly.
+Applied patch django/forms/fields.py cleanly.
+
+2026-10-09 23:55:39,581 - INFO - Git diff before:
+diff --git a/django/db/models/fields/__init__.py b/django/db/models/fields/__init__.py
+index f32ce64629..7ea5dd46e4 100755
+--- a/django/db/models/fields/__init__.py
++++ b/django/db/models/fields/__init__.py
+@@ -1633,6 +1633,7 @@ class DurationField(Field):
+     def formfield(self, **kwargs):
+         return super().formfield(**{
+             'form_class': forms.DurationField,
++            'help_text': self.help_text or _('[DD] [[HH:]MM:]ss[.uuuuuu]'),
+             **kwargs,
+         })
+ 
+diff --git a/django/forms/fields.py b/django/forms/fields.py
+index a977256525..754eafda83 100755
+--- a/django/forms/fields.py
++++ b/django/forms/fields.py
+@@ -472,6 +472,10 @@ class DurationField(Field):
+         'overflow': _('The number of days must be between {min_days} and {max_days}.')
+     }
+ 
++    def __init__(self, *, help_text='', **kwargs):
++        help_text = help_text or _('[DD] [[HH:]MM:]ss[.uuuuuu]')
++        super().__init__(help_text=help_text, **kwargs)
++
+     def prepare_value(self, value):
+         if isinstance(value, datetime.timedelta):
+             return duration_string(value)
+2026-10-09 23:55:39,582 - INFO - Eval script for django__django-11049 written to logs/run_evaluation/bench2-full/patchpilot-full/django__django-11049/eval.sh; copying to container...
+2026-10-09 23:55:54,916 - INFO - Test runtime: 15.24 seconds
+2026-10-09 23:55:54,921 - INFO - Test output for django__django-11049 written to logs/run_evaluation/bench2-full/patchpilot-full/django__django-11049/test_output.txt
+2026-10-09 23:55:55,027 - INFO - Git diff after:
+diff --git a/django/db/models/fields/__init__.py b/django/db/models/fields/__init__.py
+index f32ce64629..7ea5dd46e4 100755
+--- a/django/db/models/fields/__init__.py
++++ b/django/db/models/fields/__init__.py
+@@ -1633,6 +1633,7 @@ class DurationField(Field):
+     def formfield(self, **kwargs):
+         return super().formfield(**{
+             'form_class': forms.DurationField,
++            'help_text': self.help_text or _('[DD] [[HH:]MM:]ss[.uuuuuu]'),
+             **kwargs,
+         })
+ 
+diff --git a/django/forms/fields.py b/django/forms/fields.py
+index a977256525..754eafda83 100755
+--- a/django/forms/fields.py
++++ b/django/forms/fields.py
+@@ -472,6 +472,10 @@ class DurationField(Field):
+         'overflow': _('The number of days must be between {min_days} and {max_days}.')
+     }
+ 
++    def __init__(self, *, help_text='', **kwargs):
++        help_text = help_text or _('[DD] [[HH:]MM:]ss[.uuuuuu]')
++        super().__init__(help_text=help_text, **kwargs)
++
+     def prepare_value(self, value):
+         if isinstance(value, datetime.timedelta):
+             return duration_string(value)
+2026-10-09 23:55:55,027 - INFO - Grading answer for django__django-11049...
+2026-10-09 23:55:55,041 - INFO - report: {'django__django-11049': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': False, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': [], 'failure': ['test_invalid_string (model_fields.test_durationfield.TestValidation)']}, 'PASS_TO_PASS': {'success': ['test_dumping (model_fields.test_durationfield.TestSerialization)', 'test_loading (model_fields.test_durationfield.TestSerialization)', 'test_formfield (model_fields.test_durationfield.TestFormField)', 'test_exact (model_fields.test_durationfield.TestQuerying)', 'test_gt (model_fields.test_durationfield.TestQuerying)', 'test_create_empty (model_fields.test_durationfield.TestSaveLoad)', 'test_fractional_seconds (model_fields.test_durationfield.TestSaveLoad)', 'test_simple_roundtrip (model_fields.test_durationfield.TestSaveLoad)'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for django__django-11049: resolved: False
+2026-10-09 23:55:55,041 - INFO - Attempting to stop container sweb.eval.django__django-11049.bench2-full...
+2026-10-09 23:56:10,444 - INFO - Container sweb.eval.django__django-11049.bench2-full stopped successfully.
+2026-10-09 23:56:10,444 - INFO - Attempting to remove container sweb.eval.django__django-11049.bench2-full...
+2026-10-09 23:56:10,518 - INFO - Container sweb.eval.django__django-11049.bench2-full removed successfully.

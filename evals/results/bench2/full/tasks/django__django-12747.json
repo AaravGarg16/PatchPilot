@@ -1,0 +1,58 @@
+{
+  "instance_id": "django__django-12747",
+  "source": "swebench",
+  "config": "full",
+  "status": "done",
+  "error": null,
+  "self_accepted": true,
+  "attempts": 1,
+  "retries": 0,
+  "tool_calls": 16,
+  "tool_errors": 0,
+  "llm_calls": 16,
+  "input_tokens": 617520,
+  "output_tokens": 38834,
+  "cache_read_tokens": 458732,
+  "cache_write_tokens": 47264,
+  "max_prompt_tokens": 51883,
+  "mean_prompt_tokens": 38595.0,
+  "cost_usd": 0.8212944,
+  "latency_seconds": 601.94,
+  "tests_before_passed": null,
+  "tests_after_passed": true,
+  "retrieved_files": [
+    "docs/ref/models/querysets.txt",
+    "django/db/models/deletion.py",
+    "django/db/migrations/autodetector.py",
+    "django/db/models/query.py",
+    "django/core/files/base.py"
+  ],
+  "planned_files": [
+    "django/db/models/deletion.py",
+    "tests/delete/tests.py"
+  ],
+  "gold_files": [
+    "django/db/models/deletion.py"
+  ],
+  "model_patch": "diff --git a/django/db/models/deletion.py b/django/db/models/deletion.py\nindex 16dff6a1cd..d9e5d84c83 100644\n--- a/django/db/models/deletion.py\n+++ b/django/db/models/deletion.py\n@@ -243,6 +243,13 @@ class Collector:\n         new_objs = self.add(objs, source, nullable,\n                             reverse_dependency=reverse_dependency)\n         if not new_objs:\n+            # Register the model being collected even if it had no objects\n+            # to collect, so that the result of delete() is consistent\n+            # (i.e. a zero count entry for the model instead of it being\n+            # missing entirely from the returned dictionary).\n+            model = getattr(objs, 'model', None)\n+            if model is not None:\n+                self.data.setdefault(model, self.data.default_factory())\n             return\n \n         model = new_objs[0].__class__\n",
+  "trace_id": "af082b4356e215f386f490a761b83897",
+  "degradations": [],
+  "final_evaluation": {
+    "correct": true,
+    "requirements_met": true,
+    "tests_pass": true,
+    "problems": [],
+    "recommended_action": "finish"
+  },
+  "rejections": [],
+  "grade": {
+    "grader": "swebench",
+    "resolved": false,
+    "patch_applied": true,
+    "fail_to_pass_passed": 0,
+    "fail_to_pass_total": 3,
+    "pass_to_pass_passed": 49,
+    "pass_to_pass_total": 49,
+    "error": null
+  }
+}

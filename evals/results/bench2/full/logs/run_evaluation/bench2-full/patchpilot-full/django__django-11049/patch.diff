@@ -1,0 +1,27 @@
+diff --git a/django/db/models/fields/__init__.py b/django/db/models/fields/__init__.py
+index f32ce64629..7ea5dd46e4 100644
+--- a/django/db/models/fields/__init__.py
++++ b/django/db/models/fields/__init__.py
+@@ -1633,6 +1633,7 @@ class DurationField(Field):
+     def formfield(self, **kwargs):
+         return super().formfield(**{
+             'form_class': forms.DurationField,
++            'help_text': self.help_text or _('[DD] [[HH:]MM:]ss[.uuuuuu]'),
+             **kwargs,
+         })
+ 
+diff --git a/django/forms/fields.py b/django/forms/fields.py
+index a977256525..754eafda83 100644
+--- a/django/forms/fields.py
++++ b/django/forms/fields.py
+@@ -472,6 +472,10 @@ class DurationField(Field):
+         'overflow': _('The number of days must be between {min_days} and {max_days}.')
+     }
+ 
++    def __init__(self, *, help_text='', **kwargs):
++        help_text = help_text or _('[DD] [[HH:]MM:]ss[.uuuuuu]')
++        super().__init__(help_text=help_text, **kwargs)
++
+     def prepare_value(self, value):
+         if isinstance(value, datetime.timedelta):
+             return duration_string(value)

@@ -1,0 +1,18 @@
+diff --git a/django/db/models/deletion.py b/django/db/models/deletion.py
+index 16dff6a1cd..d9e5d84c83 100644
+--- a/django/db/models/deletion.py
++++ b/django/db/models/deletion.py
+@@ -243,6 +243,13 @@ class Collector:
+         new_objs = self.add(objs, source, nullable,
+                             reverse_dependency=reverse_dependency)
+         if not new_objs:
++            # Register the model being collected even if it had no objects
++            # to collect, so that the result of delete() is consistent
++            # (i.e. a zero count entry for the model instead of it being
++            # missing entirely from the returned dictionary).
++            model = getattr(objs, 'model', None)
++            if model is not None:
++                self.data.setdefault(model, self.data.default_factory())
+             return
+ 
+         model = new_objs[0].__class__
