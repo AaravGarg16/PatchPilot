@@ -8,3 +8,7 @@ __pycache__/
 .ruff_cache/
 evals/results/
 logs/
+
+# Internal build docs, kept local only.
+CLAUDE.md
+docs/SPEC.md

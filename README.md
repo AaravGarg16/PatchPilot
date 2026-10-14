@@ -168,5 +168,5 @@ observability/  Langfuse tracing, token and cost tracking
 evals/          SWE-bench harness, task sets, metrics, reports, results
 apps/web/       Next.js replay demo
 tests/          test suite
-docs/           spec and VM runbook
+docs/           VM runbook
 ```
