@@ -1,0 +1,369 @@
+{
+  "model": "claude-sonnet-5",
+  "benchmark": "SWE-bench Lite",
+  "replays": [
+    {
+      "id": "django__django-11049-full",
+      "instanceId": "django__django-11049",
+      "repo": "django/django",
+      "version": "3.0",
+      "tag": "Retry loop",
+      "takeaway": "Three attempts. Each time the related tests failed on an existing test that still asserted the old message, and the evaluator sent written feedback back to the executor. The agent is not allowed to edit existing tests, so it hit its attempt limit without accepting its own patch. The official grader, which runs the updated tests, marked the patch resolved.",
+      "config": {
+        "key": "full",
+        "label": "Full pipeline",
+        "components": [
+          "Retrieval",
+          "Planner",
+          "Executor",
+          "Sandboxed tests",
+          "Evaluator"
+        ],
+        "judge": "evaluator",
+        "note": "The full pipeline: after each attempt an LLM evaluator reviews the diff and the test results."
+      },
+      "issue": {
+        "title": "Correct expected format in invalid DurationField error message",
+        "body": "Description\n\t\nIf you enter a duration \"14:00\" into a duration field, it translates to \"00:14:00\" which is 14 minutes.\nThe current error message for invalid DurationField says that this should be the format of durations: \"[DD] [HH:[MM:]]ss[.uuuuuu]\". But according to the actual behaviour, it should be: \"[DD] [[HH:]MM:]ss[.uuuuuu]\", because seconds are mandatory, minutes are optional, and hours are optional if minutes are provided.\nThis seems to be a mistake in all Django versions that support the DurationField.\nAlso the duration fields could have a default help_text with the requested format, because the syntax is not self-explanatory."
+      },
+      "retrieval": [
+        {
+          "path": "django/db/models/fields/__init__.py",
+          "inPatch": true
+        },
+        {
+          "path": "django/db/models/query.py",
+          "inPatch": false
+        },
+        {
+          "path": "docs/intro/tutorial05.txt",
+          "inPatch": false
+        },
+        {
+          "path": "docs/intro/contributing.txt",
+          "inPatch": false
+        },
+        {
+          "path": "django/forms/fields.py",
+          "inPatch": false
+        }
+      ],
+      "plan": {
+        "files": [
+          {
+            "path": "django/db/models/fields/__init__.py",
+            "inPatch": true
+          },
+          {
+            "path": "django/forms/fields.py",
+            "inPatch": false
+          },
+          {
+            "path": "tests/model_fields/test_durationfield.py",
+            "inPatch": false
+          },
+          {
+            "path": "tests/forms_tests/field_tests/test_durationfield.py",
+            "inPatch": false
+          },
+          {
+            "path": "docs/ref/models/fields.txt",
+            "inPatch": false
+          }
+        ]
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "tests": {
+            "ran": true,
+            "passed": false,
+            "selected": [
+              "tests/model_fields/test_durationfield.py",
+              "tests/forms_tests/field_tests/test_durationfield.py",
+              "tests/model_fields/test_field_flags.py",
+              "tests/forms_tests/field_tests/test_base.py",
+              "tests/forms_tests/field_tests/test_urlfield.py",
+              "tests/forms_tests/field_tests/test_charfield.py"
+            ]
+          },
+          "accepted": false,
+          "judge": "evaluator",
+          "problems": [
+            "tests/model_fields/test_durationfield.py::TestValidation::test_invalid_string still asserts the old, incorrect error message format string. Since this test is in the explicit test list for this issue and is failing due to the (correct) message fix, it must be updated to assert the new format string \"[DD] [[HH:]MM:]ss[.uuuuuu]\" to match the corrected behavior.",
+            "No default help_text was added to DurationField as requested in the issue ('Also the duration fields could have a default help_text with the requested format')."
+          ]
+        },
+        {
+          "number": 2,
+          "tests": {
+            "ran": true,
+            "passed": false,
+            "selected": [
+              "tests/model_fields/test_durationfield.py",
+              "tests/forms_tests/field_tests/test_durationfield.py",
+              "tests/model_fields/test_field_flags.py",
+              "tests/forms_tests/field_tests/test_base.py",
+              "tests/forms_tests/field_tests/test_urlfield.py",
+              "tests/forms_tests/field_tests/test_charfield.py"
+            ]
+          },
+          "accepted": false,
+          "judge": "evaluator",
+          "problems": [
+            "tests/model_fields/test_durationfield.py::TestValidation::test_invalid_string still asserts the old incorrect message '[DD] [HH:[MM:]]ss[.uuuuuu]'. This test must be updated to expect the corrected format '[DD] [[HH:]MM:]ss[.uuuuuu]' since the message change is the core of this fix. The executor claims this file cannot be edited, but this is the exact test file listed as needing update in tests_needed, so it must find a way to modify it (e.g. via patch/diff application rather than whatever restricted tool failed) \u2014 a correct fix for this issue requires both the production code change and the corresponding test update."
+          ]
+        },
+        {
+          "number": 3,
+          "tests": {
+            "ran": true,
+            "passed": false,
+            "selected": [
+              "tests/model_fields/test_durationfield.py",
+              "tests/forms_tests/field_tests/test_durationfield.py",
+              "tests/model_fields/test_field_flags.py",
+              "tests/forms_tests/field_tests/test_base.py",
+              "tests/forms_tests/field_tests/test_urlfield.py",
+              "tests/forms_tests/field_tests/test_charfield.py"
+            ]
+          },
+          "accepted": false,
+          "judge": "evaluator",
+          "problems": [
+            "tests/model_fields/test_durationfield.py::TestValidation::test_invalid_string still asserts the old incorrect message '[DD] [HH:[MM:]]ss[.uuuuuu]'. Since this exact test file is listed in tests_needed as requiring an update to match the corrected format string, it must be edited to expect '[DD] [[HH:]MM:]ss[.uuuuuu]'. The executor must find a way to apply this edit (e.g., via a diff/patch to the test file) rather than reporting it as impossible, since modifying this test is part of the required fix."
+          ]
+        }
+      ],
+      "maxAttempts": 3,
+      "selfAccepted": false,
+      "patch": "diff --git a/django/db/models/fields/__init__.py b/django/db/models/fields/__init__.py\nindex f32ce64629..f1b3efbc98 100644\n--- a/django/db/models/fields/__init__.py\n+++ b/django/db/models/fields/__init__.py\n@@ -1587,7 +1587,7 @@ class DurationField(Field):\n     empty_strings_allowed = False\n     default_error_messages = {\n         'invalid': _(\"'%(value)s' value has an invalid format. It must be in \"\n-                     \"[DD] [HH:[MM:]]ss[.uuuuuu] format.\")\n+                     \"[DD] [[HH:]MM:]ss[.uuuuuu] format.\")\n     }\n     description = _(\"Duration\")\n \n@@ -1631,6 +1631,10 @@ class DurationField(Field):\n         return '' if val is None else duration_string(val)\n \n     def formfield(self, **kwargs):\n+        kwargs.setdefault(\n+            'help_text',\n+            self.help_text or _('Enter a valid duration of the form: [DD] [[HH:]MM:]ss[.uuuuuu]'),\n+        )\n         return super().formfield(**{\n             'form_class': forms.DurationField,\n             **kwargs,\n",
+      "patchFiles": [
+        "django/db/models/fields/__init__.py"
+      ],
+      "grade": {
+        "resolved": true,
+        "failToPass": [
+          1,
+          1
+        ],
+        "passToPass": [
+          8,
+          8
+        ]
+      },
+      "metrics": {
+        "attempts": 3,
+        "llmCalls": 49,
+        "toolCalls": 43,
+        "toolErrors": 5,
+        "inputTokens": 1765695,
+        "outputTokens": 27250,
+        "cacheReadTokens": 1258222,
+        "costUsd": 1.594,
+        "latencySeconds": 494
+      },
+      "source": "evals/results/bench/full/tasks/django__django-11049.json"
+    },
+    {
+      "id": "django__django-13401-planner",
+      "instanceId": "django__django-13401",
+      "repo": "django/django",
+      "version": "3.2",
+      "tag": "Single attempt",
+      "takeaway": "One attempt, six tool calls. The planner narrowed five retrieved files to the one that mattered and its tests; the executor rewrote __eq__, __lt__ and __hash__ on Field. The official grader's hidden test passed, with all 32 existing tests still passing.",
+      "config": {
+        "key": "planner",
+        "label": "Retrieval + planner",
+        "components": [
+          "Retrieval",
+          "Planner",
+          "Executor",
+          "Sandboxed tests"
+        ],
+        "judge": "tests",
+        "note": "This run used the pipeline without the LLM evaluator: a patch is accepted when the related tests pass."
+      },
+      "issue": {
+        "title": "Abstract model field should not be equal across models",
+        "body": "Description\n\t\nConsider the following models:\nclass A(models.Model):\n\tclass Meta:\n\t\tabstract = True\n\tmyfield = IntegerField()\nclass B(A):\n\tpass\nclass C(A):\n\tpass\nIf I pull the fields of B and C into a shared set, one will be de-duplicated away, because they compare as equal. I found this surprising, though in practice using a list was sufficient for my need. The root of the issue is that they compare equal, as fields only consider self.creation_counter when comparing for equality.\nlen({B._meta.get_field('myfield'), C._meta.get_field('myfield')}) == 1\nB._meta.get_field('myfield') == C._meta.get_field('myfield')\nWe should adjust __eq__ so that if the field.model is different, they will compare unequal. Similarly, it is probably wise to adjust __hash__ and __lt__ to match.\nWhen adjusting __lt__, it may be wise to order first by self.creation_counter so that cases not affected by this equality collision won't be re-ordered. In my experimental branch, there was one test that broke if I ordered them by model first.\nI brought this up on IRC django-dev to check my intuitions, and those conversing with me there seemed to agree that the current behavior is not intuitive."
+      },
+      "retrieval": [
+        {
+          "path": "docs/releases/1.7.txt",
+          "inPatch": false
+        },
+        {
+          "path": "django/contrib/postgres/fields/array.py",
+          "inPatch": false
+        },
+        {
+          "path": "django/db/models/fields/__init__.py",
+          "inPatch": true
+        },
+        {
+          "path": "docs/ref/contrib/admin/index.txt",
+          "inPatch": false
+        },
+        {
+          "path": "docs/topics/db/models.txt",
+          "inPatch": false
+        }
+      ],
+      "plan": {
+        "files": [
+          {
+            "path": "django/db/models/fields/__init__.py",
+            "inPatch": true
+          },
+          {
+            "path": "tests/model_fields/tests.py",
+            "inPatch": false
+          }
+        ]
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "tests": {
+            "ran": true,
+            "passed": true,
+            "selected": null
+          },
+          "accepted": true,
+          "judge": "tests",
+          "problems": []
+        }
+      ],
+      "maxAttempts": 3,
+      "selfAccepted": true,
+      "patch": "diff --git a/django/db/models/fields/__init__.py b/django/db/models/fields/__init__.py\nindex 28374272f4..15e69d3704 100644\n--- a/django/db/models/fields/__init__.py\n+++ b/django/db/models/fields/__init__.py\n@@ -516,17 +516,37 @@ class Field(RegisterLookupMixin):\n     def __eq__(self, other):\n         # Needed for @total_ordering\n         if isinstance(other, Field):\n-            return self.creation_counter == other.creation_counter\n+            return (\n+                self.creation_counter == other.creation_counter and\n+                getattr(self, 'model', None) == getattr(other, 'model', None)\n+            )\n         return NotImplemented\n \n     def __lt__(self, other):\n         # This is needed because bisect does not take a comparison function.\n+        # Order by creation_counter first for backward compatibility.\n         if isinstance(other, Field):\n-            return self.creation_counter < other.creation_counter\n+            if (\n+                self.creation_counter != other.creation_counter or\n+                not hasattr(self, 'model') and not hasattr(other, 'model')\n+            ):\n+                return self.creation_counter < other.creation_counter\n+            elif hasattr(self, 'model') != hasattr(other, 'model'):\n+                return not hasattr(self, 'model')  # Order no-model fields first\n+            else:\n+                # creation_counter's are equal, compare only models.\n+                return (\n+                    (self.model._meta.app_label, self.model._meta.model_name) <\n+                    (other.model._meta.app_label, other.model._meta.model_name)\n+                )\n         return NotImplemented\n \n     def __hash__(self):\n-        return hash(self.creation_counter)\n+        return hash((\n+            self.creation_counter,\n+            self.model._meta.app_label if hasattr(self, 'model') else None,\n+            self.model._meta.model_name if hasattr(self, 'model') else None,\n+        ))\n \n     def __deepcopy__(self, memodict):\n         # We don't have to deepcopy very much here, since most things are not\n",
+      "patchFiles": [
+        "django/db/models/fields/__init__.py"
+      ],
+      "grade": {
+        "resolved": true,
+        "failToPass": [
+          1,
+          1
+        ],
+        "passToPass": [
+          32,
+          32
+        ]
+      },
+      "metrics": {
+        "attempts": 1,
+        "llmCalls": 7,
+        "toolCalls": 6,
+        "toolErrors": 0,
+        "inputTokens": 192492,
+        "outputTokens": 2521,
+        "cacheReadTokens": 135349,
+        "costUsd": 0.1818,
+        "latencySeconds": 136
+      },
+      "source": "evals/results/bench/planner/tasks/django__django-13401.json"
+    },
+    {
+      "id": "sympy__sympy-18835-planner",
+      "instanceId": "sympy__sympy-18835",
+      "repo": "sympy/sympy",
+      "version": "1.6",
+      "tag": "Different codebase",
+      "takeaway": "A different repository and a behavior change rather than a one-line fix: uniq() now raises RuntimeError when the list it iterates is modified, as the issue asked. One attempt, 21 tool calls, and the official grader's hidden test passed alongside 41 existing ones.",
+      "config": {
+        "key": "planner",
+        "label": "Retrieval + planner",
+        "components": [
+          "Retrieval",
+          "Planner",
+          "Executor",
+          "Sandboxed tests"
+        ],
+        "judge": "tests",
+        "note": "This run used the pipeline without the LLM evaluator: a patch is accepted when the related tests pass."
+      },
+      "issue": {
+        "title": "uniq modifies list argument",
+        "body": "When you iterate over a dictionary or set and try to modify it while doing so you get an error from Python:\r\n```python\r\n>>> multiset('THISTLE')\r\n{'T': 2, 'H': 1, 'I': 1, 'S': 1, 'L': 1, 'E': 1}\r\n>>> for i in _:\r\n...   _.pop(i)\r\n...\r\n2\r\nTraceback (most recent call last):\r\n  File \"<stdin>\", line 1, in <module>\r\nRuntimeError: dictionary changed size during iteration\r\n```\r\nIt would be good to do the same thing from within `uniq` because the output will silently be wrong if you modify a passed list:\r\n```python\r\n>>> f=list('THISTLE')\r\n>>> for i in uniq(f):\r\n...   f.remove(i)\r\n...   i\r\n...\r\n'T'\r\n'I'\r\n'L'\r\n```\r\nI think this would entail recording the size at the start and then checking the size and raising a similar RuntimeError if the size changes."
+      },
+      "retrieval": [
+        {
+          "path": "sympy/utilities/iterables.py",
+          "inPatch": true
+        },
+        {
+          "path": "sympy/core/containers.py",
+          "inPatch": false
+        },
+        {
+          "path": "sympy/utilities/tests/test_iterables.py",
+          "inPatch": false
+        },
+        {
+          "path": "release/fabfile.py",
+          "inPatch": false
+        },
+        {
+          "path": "sympy/external/importtools.py",
+          "inPatch": false
+        }
+      ],
+      "plan": {
+        "files": [
+          {
+            "path": "sympy/utilities/iterables.py",
+            "inPatch": true
+          },
+          {
+            "path": "sympy/utilities/tests/test_iterables.py",
+            "inPatch": false
+          }
+        ]
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "tests": {
+            "ran": true,
+            "passed": true,
+            "selected": null
+          },
+          "accepted": true,
+          "judge": "tests",
+          "problems": []
+        }
+      ],
+      "maxAttempts": 3,
+      "selfAccepted": true,
+      "patch": "diff --git a/sympy/utilities/iterables.py b/sympy/utilities/iterables.py\nindex d96e76263b..3d0f2975e4 100644\n--- a/sympy/utilities/iterables.py\n+++ b/sympy/utilities/iterables.py\n@@ -2105,17 +2105,43 @@ def uniq(seq, result=None):\n     [1, 4, 5, 2]\n     >>> list(uniq([[1], [2, 1], [1]]))\n     [[1], [2, 1]]\n+\n+    You can use ``uniq`` with a generator or some other iterable without\n+    a known size, but if you pass something that has a ``__len__``\n+    attribute (like a list) and that sequence is mutated while it is\n+    being iterated over, a ``RuntimeError`` will be raised, just as\n+    Python does when a ``dict`` or ``set`` changes size during\n+    iteration:\n+\n+    >>> f = list('THISTLE')\n+    >>> for i in uniq(f):\n+    ...     f.remove(i)\n+    ...\n+    Traceback (most recent call last):\n+    ...\n+    RuntimeError: sequence changed size during iteration\n     \"\"\"\n     try:\n         seen = set()\n         result = result or []\n+        try:\n+            size = len(seq)\n+        except TypeError:\n+            size = None\n+\n+        def check_size():\n+            if size is not None and len(seq) != size:\n+                raise RuntimeError('sequence changed size during iteration')\n+\n         for i, s in enumerate(seq):\n             if not (s in seen or seen.add(s)):\n                 yield s\n+                check_size()\n     except TypeError:\n         if s not in result:\n             yield s\n             result.append(s)\n+            check_size()\n         if hasattr(seq, '__getitem__'):\n             for s in uniq(seq[i + 1:], result):\n                 yield s\n",
+      "patchFiles": [
+        "sympy/utilities/iterables.py"
+      ],
+      "grade": {
+        "resolved": true,
+        "failToPass": [
+          1,
+          1
+        ],
+        "passToPass": [
+          41,
+          41
+        ]
+      },
+      "metrics": {
+        "attempts": 1,
+        "llmCalls": 23,
+        "toolCalls": 21,
+        "toolErrors": 0,
+        "inputTokens": 1023889,
+        "outputTokens": 11894,
+        "cacheReadTokens": 784148,
+        "costUsd": 0.7794,
+        "latencySeconds": 568
+      },
+      "source": "evals/results/bench/planner/tasks/sympy__sympy-18835.json"
+    }
+  ]
+}

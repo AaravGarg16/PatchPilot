@@ -14,7 +14,7 @@ Every phase ends the same way: something runs, tests pass, and we commit.
 
 ## Current phase
 
-Phase 6: Evals.
+Phase 8: Ship.
 
 ## Tech stack
 
