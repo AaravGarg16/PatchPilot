@@ -1,12 +1,14 @@
 # PatchPilot
 
+[![CI](https://github.com/AaravGarg16/PatchPilot/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AaravGarg16/PatchPilot/actions/workflows/ci.yml)
+
 An autonomous software engineering agent. Given a repository and an issue, it retrieves the relevant code, plans a fix, edits files, runs the tests in an isolated Docker sandbox, evaluates its own patch, retries on failure, and returns a diff.
 
 It is evaluated on SWE-bench Lite with the benchmark's official grading harness. The results below are small-sample and reported exactly as measured.
 
 ## Demo
 
-**Live replay:** `<add Vercel URL after deploy>`
+**Live replay:** https://patch-pilot-sooty.vercel.app/
 
 The demo replays three recorded benchmark runs step by step: the issue, the retrieved files, each attempt with its test results and evaluator feedback, the final diff, and the official grade. It is a static site with no backend and makes no model calls.
 
@@ -51,12 +53,12 @@ flowchart TD
 
 A component ablation on **8 tasks** drawn from SWE-bench Lite (5 Django, 3 SymPy), graded by the official SWE-bench harness. The task set is a seeded random draw, fixed before any run, that excludes every task used during development. Each row adds one component to the row above. Model: Claude Sonnet 5.
 
-| Configuration | Tasks run | Resolved | Resolve rate | Cost / task | Tokens / task | Median latency |
+| Configuration | Tasks run | Resolved | Resolve rate | Cost / task | Retrieval recall (top 5) | Self-acceptance precision |
 |---|---|---|---|---|---|---|
-| Baseline (executor + tests) | 8 | 4 | 50% | $0.54 | 308K | 98s |
-| + RAG | 8 | 3 | 38% | $0.71 | 778K | 3,055s (one-time indexing) |
-| + Planner | 8 | 4 | 50% | $1.42 | 1,316K | 428s |
-| + Evaluator (full pipeline) | 6 | 2 | 33% | $1.35 | 1,380K | 494s |
+| Baseline (executor + tests) | 8 | 4 | 50% | $0.54 | n/a | 43% |
+| + RAG | 8 | 3 | 38% | $0.71 | 50% | 38% |
+| + Planner | 8 | 4 | 50% | $1.42 | 62% | 50% |
+| + Evaluator (full pipeline) | 6 | 2 | 33% | $1.35 | 83% | 0% |
 
 How to read this:
 
@@ -64,17 +66,6 @@ How to read this:
 - **On this sample, added components did not raise the resolve rate.** They raised cost per task by up to about 2.6x over the baseline. That is the measured result, and it is what the findings below investigate.
 - **The full-pipeline row is not directly comparable.** It ran 6 of the 8 tasks before the API budget was exhausted, and 3 of those 6 runs ended in errors: a truncated planner reply, a crash inside the tool session, and an API credit error. The first two were bugs, fixed afterwards (see Robustness). One of the errored runs still produced a patch the grader resolved.
 - **The + RAG latency is mostly one-time indexing.** It was the first configuration to embed each repository. With the embedding cache warm, the same tasks ran in 136 to 1,760 seconds under + Planner.
-
-Supporting metrics:
-
-| Metric | Baseline | + RAG | + Planner | + Evaluator |
-|---|---|---|---|---|
-| Retrieval recall (reference-patch file in the top 5) | n/a | 50% | 62% | 83% |
-| Input tokens served from prompt cache | 29% | 69% | 65% | 70% |
-| Agent accepted its own patch | 88% | 100% | 75% | 33% |
-| Of accepted patches, share the grader resolved | 43% | 38% | 50% | 0% |
-| Average retries | 0.25 | 0.00 | 0.50 | 0.50 |
-| 95th-percentile latency | 385s | 8,867s | 1,760s | 1,150s |
 
 Retrieval precision is not reported as a headline: with five files retrieved and one file in each reference patch, it cannot exceed 20%.
 
